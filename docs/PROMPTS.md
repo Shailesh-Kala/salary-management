@@ -418,3 +418,13 @@ next
 ```
 
 **Response:** TDD: failing tests for the create schema (normalisation, every missing field, 9 invalid values, unknown fields), the service with fake repositories (derived currency/status, `hire` change effective on hire date with full snapshot, default/HR note, unsupported country and future hire date write nothing), the endpoint (201, duplicate code/email → 409, 400 paths, unsupported country, 401), atomicity (failing hire-change insert leaves no employee) and the append-only trigger; then migration `0002` (employees with checks + indexes incl. trigram search, `employee_changes` + `reject_modification()` trigger), repositories, service, route and PG unique-violation → `DUPLICATE` mapping. Fixed malformed amounts reporting two errors (refine → pipe). 133 tests pass; migrated the app DB.
+
+---
+
+## 26. Phase 3 — Task 11: List employees API
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests on a 5-employee, 4-currency fixture (default page sorted by name with INR and rates date, pagination incl. past the end, sort by converted salary asc/desc, USD conversion with exact expected values, 7 filter combinations, SQL status = `employeeStatus()`, search by name/full name/code/email and a literal `%`, 5 validation errors); then `listEmployeesQuery`, a repository query with whitelisted ORDER BY, parameters added only when used, trigram-index search expression, LIKE escaping, conversion `round((base+allowances) × rate_from ÷ rate_to, 2)`, separate count, and `ratesInfo` (oldest rate date + unknown-currency check). 155 tests pass.

@@ -76,7 +76,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - duplicate code or email → 409 `DUPLICATE`
       - invalid input → 400 with field paths
       - employee and hire change are written in one transaction
-11. [ ] **List employees API:** pagination, whitelisted sort, filters (country, department, job title, status), search `q`, `currency` with the converted annual salary, `ratesAsOf`.
+11. [x] **List employees API:** pagination, whitelisted sort, filters (country, department, job title, status), search `q`, `currency` with the converted annual salary, `ratesAsOf`.
     - Integration tests with fixtures:
       - page and total
       - sort by converted salary across currencies
