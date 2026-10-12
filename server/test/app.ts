@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { pino } from 'pino';
+import { type Logger, pino } from 'pino';
 import { createApp } from '../src/app.ts';
 import type { Config } from '../src/config.ts';
 import type { Clock } from '../src/lib/clock.ts';
@@ -23,15 +23,17 @@ export const testConfig: Config = {
   DATABASE_URL: 'postgres://unused-in-tests',
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
   COOKIE_SECURE: true,
+  CORS_ORIGIN: 'http://localhost:5173',
 };
 
 export function buildTestApp({
   db = testPool,
   clock = fixedClock(),
   config = {},
-}: { db?: Pool; clock?: Clock; config?: Partial<Config> } = {}) {
+  logger = pino({ level: 'silent' }),
+}: { db?: Pool; clock?: Clock; config?: Partial<Config>; logger?: Logger } = {}) {
   return createApp({
-    logger: pino({ level: 'silent' }),
+    logger,
     db,
     clock,
     config: { ...testConfig, ...config },

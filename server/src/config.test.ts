@@ -12,6 +12,7 @@ describe('loadConfig', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       COOKIE_SECURE: true,
+      CORS_ORIGIN: 'http://localhost:5173',
       ...required,
     });
   });
