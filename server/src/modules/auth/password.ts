@@ -5,6 +5,9 @@ const PARAMS = { N: 2 ** 15, r: 8, p: 1 };
 const MAXMEM = 64 * 1024 * 1024;
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
+const MALFORMED = 'stored password hash is malformed';
+
+type WarnLog = { warn(msg: string): void };
 
 function deriveKey(password: string, salt: Buffer, options: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -28,7 +31,12 @@ export async function hashPassword(password: string): Promise<string> {
   ].join('$');
 }
 
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+/** Never throws: a malformed stored hash is reported through `log` (without the hash) and fails verification. */
+export async function verifyPassword(
+  password: string,
+  stored: string,
+  log?: WarnLog,
+): Promise<boolean> {
   const [algorithm, n, r, p, salt, key, ...rest] = stored.split('$');
   const params = { N: Number(n), r: Number(r), p: Number(p) };
   const expected = Buffer.from(key ?? '', 'base64');
@@ -39,6 +47,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
     !Object.values(params).every(Number.isInteger) ||
     expected.length !== KEY_LENGTH
   ) {
+    log?.warn(MALFORMED);
     return false;
   }
 
@@ -46,6 +55,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
     const actual = await deriveKey(password, Buffer.from(salt, 'base64'), params);
     return timingSafeEqual(actual, expected);
   } catch {
-    return false; // parameters scrypt refuses (e.g. N not a power of two, over maxmem)
+    log?.warn(MALFORMED); // parameters scrypt refuses (e.g. N not a power of two, over maxmem)
+    return false;
   }
 }
