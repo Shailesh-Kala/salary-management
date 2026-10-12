@@ -9,9 +9,9 @@ export const nonNegativeAmount = z
   .transform(String)
   .pipe(z.string().regex(PLAIN_AMOUNT, 'Must be an amount like 95000 or 95000.50'));
 
-export const positiveAmount = nonNegativeAmount.refine(
-  (amount) => toCents(amount) > 0,
-  'Must be greater than 0',
+// pipe (not refine) so a malformed amount reports one error, not "malformed" and "not > 0".
+export const positiveAmount = nonNegativeAmount.pipe(
+  z.string().refine((amount) => toCents(amount) > 0, 'Must be greater than 0'),
 );
 
 // Safe as Number: the largest NUMERIC(14,2) value is ~1e14 cents, well below 2^53.

@@ -29,6 +29,10 @@ describe('positiveAmount', () => {
   ])('rejects %s', (_case, input) => {
     expect(positiveAmount.safeParse(input).success).toBe(false);
   });
+
+  it('reports exactly one error for a malformed amount', () => {
+    expect(positiveAmount.safeParse('-1').error?.issues).toHaveLength(1);
+  });
 });
 
 describe('nonNegativeAmount', () => {

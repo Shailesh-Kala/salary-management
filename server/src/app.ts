@@ -16,6 +16,10 @@ import { authRoutes } from './modules/auth/auth.routes.ts';
 import { createAuthService } from './modules/auth/auth.service.ts';
 import { createSessionTokens } from './modules/auth/session-tokens.ts';
 import { createUsersRepository } from './modules/auth/users.repository.ts';
+import { employeeRepositories } from './modules/employees/employees.repository.ts';
+import { employeeRoutes } from './modules/employees/employees.routes.ts';
+import { createEmployeesService } from './modules/employees/employees.service.ts';
+import { withTransaction } from './db/transaction.ts';
 
 export type AppDeps = { logger: Logger; db: Pool; clock: Clock; config: Config };
 
@@ -63,6 +67,10 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
     tokens: createSessionTokens(config.JWT_SECRET, clock),
   });
   const { publicRoutes, protectedRoutes } = authRoutes(auth, config);
+  const employees = createEmployeesService({
+    clock,
+    inTransaction: (fn) => withTransaction(db, (client) => fn(employeeRepositories(client))),
+  });
 
   // Everything under /api needs a session except the routes registered before requireAuth.
   const api = express.Router();
@@ -70,6 +78,7 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   api.use(requireAuth(auth));
   api.use(apiRateLimit());
   api.use(protectedRoutes);
+  api.use(employeeRoutes(employees));
   app.use('/api', api);
 
   app.use((req, _res, next) => {
