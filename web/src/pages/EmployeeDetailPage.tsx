@@ -24,6 +24,7 @@ import {
 import { ChangeDialog } from '../components/ChangeDialog.tsx';
 import { HistoryList } from '../components/HistoryList.tsx';
 import { StatusChip } from '../components/StatusChip.tsx';
+import { VersionConflictAlert } from '../components/VersionConflictAlert.tsx';
 import { formatMoney } from '../lib/format.ts';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -87,17 +88,7 @@ function EditProfileDialog({
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {conflict ? (
-            <Alert
-              severity="warning"
-              action={
-                <Button color="inherit" size="small" onClick={reload}>
-                  Reload
-                </Button>
-              }
-            >
-              Someone else updated this employee while you were editing. Reload to get their
-              changes, then make your edit again.
-            </Alert>
+            <VersionConflictAlert onReload={reload} />
           ) : (
             save.isError &&
             Object.keys(errors).length === 0 && <Alert severity="error">{save.error.message}</Alert>

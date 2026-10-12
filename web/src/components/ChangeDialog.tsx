@@ -20,6 +20,7 @@ import {
   type FilterOptions,
   RECORDABLE_CHANGE_TYPES,
 } from '../api/employees.ts';
+import { VersionConflictAlert } from './VersionConflictAlert.tsx';
 
 type Props = {
   employee: EmployeeDetail;
@@ -122,19 +123,7 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
       <DialogTitle>Record change</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          {conflict && (
-            <Alert
-              severity="warning"
-              action={
-                <Button color="inherit" size="small" onClick={reload}>
-                  Reload
-                </Button>
-              }
-            >
-              Someone else updated this employee while you were editing. Reload to get their
-              changes, then record yours again.
-            </Alert>
-          )}
+          {conflict && <VersionConflictAlert onReload={reload} />}
           {general && <Alert severity="error">{general}</Alert>}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
