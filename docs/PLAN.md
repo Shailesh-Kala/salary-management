@@ -29,7 +29,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - a `DATE` round-trips as the identical `YYYY-MM-DD` string while the suite runs with `TZ=America/Los_Angeles`, set in the Vitest config (**T17**, DB part)
 
 ## Slice B: Log in
-5. [ ] **Password hashing** (`crypto.scrypt`).
+5. [x] **Password hashing** (`crypto.scrypt`).
    - Unit tests:
      - hash/verify round-trip
      - a wrong password fails

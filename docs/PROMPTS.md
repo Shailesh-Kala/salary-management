@@ -331,3 +331,13 @@ Done, Next
 ```
 
 **Response:** Created the missing `salary_management` database (only the test DB existed). TDD: failing tests for DATE-as-string under `TZ=America/Los_Angeles` (T17 DB part), UTC session + 5 s statement timeout, reference data, `withTransaction` commit/rollback, `/health` db ok/503, and the test-DB guard; then `pg` pool, `withTransaction`, node-pg-migrate runner + `npm run migrate`, migration `0001` (users, rates, countries, rate history, `load_reference_data()`), Vitest global setup and `resetDb()`. 20 tests pass; migrated the app DB; live `/health` ok. Logged D-041; noted PostgreSQL 14+ (local 14.3, CI 16).
+
+---
+
+## 18. Phase 3 — Task 5: Password hashing
+
+```text
+next
+```
+
+**Response:** TDD: failing tests (round-trip, wrong password, self-describing salted format, six malformed stored hashes return false instead of throwing), then `password.ts` using built-in `crypto.scrypt` (N=2^15, r=8, p=1, 16-byte salt, 64-byte key, `timingSafeEqual`, maxmem raised to 64 MiB). ~96 ms per verify. 29 tests pass.
