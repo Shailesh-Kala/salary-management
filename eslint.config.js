@@ -17,8 +17,12 @@ export default tseslint.config(
   },
   {
     rules: {
-      // Express identifies error handlers by arity, so unused `_next` must be allowed.
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // `_`-prefixed names are deliberately unused: Express's 4-arg error handler, and
+      // fields dropped by destructuring.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
   },
 );
