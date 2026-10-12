@@ -51,18 +51,25 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
   [*] --> validating: POST /imports (sync checks pass, 202)
-  validating --> awaiting_confirmation: validate job done
+  validating --> awaiting_confirmation: validate job done (schedules import_expire at +24 h)
   validating --> cancelled: POST /imports/:id/cancel
   awaiting_confirmation --> applying: POST /imports/:id/confirm
   awaiting_confirmation --> cancelled: POST /imports/:id/cancel
+  awaiting_confirmation --> expired: 24 h passed (import_expire job)
   applying --> completed: all rows have a final outcome
   validating --> failed: 3 attempts exhausted
   applying --> failed: 3 attempts exhausted
   completed --> [*]
   cancelled --> [*]
   failed --> [*]
+  expired --> [*]
 ```
 - **Active** states are `validating`, `awaiting_confirmation` and `applying`. At most **one** import can be active, enforced by a partial unique index (D-021).
+- **Preview expiry (D-031):**
+  - When the preview is ready, `preview_expires_at = now + 24 h` and an `import_expire` job is scheduled for that time.
+  - The job moves a still-`awaiting_confirmation` import to `expired`; otherwise it does nothing.
+  - `confirm` also checks `now ≥ preview_expires_at` itself and returns `410`, so expiry never depends on when the job happens to run.
+- **End-of-import clearing (D-031):** the transaction that moves an import to `completed`, `cancelled`, `failed` or `expired` also sets `imports.file = NULL` and `import_rows.raw = NULL`.
 - **Apply** loops over rows that are valid in the preview and have `applied_at IS NULL`, in `row_number` order. **Each row runs in one transaction:**
   1. lock or look up the employee
   2. re-validate the row
@@ -90,18 +97,25 @@ sequenceDiagram
   end
   W->>DB: UPDATE exports SET email_sent_at=now WHERE email_sent_at IS NULL RETURNING id
   alt row returned (not sent before)
-    W->>M: send link to requester's own address
+    W->>M: send link APP_BASE_URL/exports/:id to requester's own address
     Note over W,M: on send error → clear email_sent_at, throw → retry
   end
-  UI->>API: GET /exports/:id/download (from email link)
+  Note over UI: HR clicks the link in webmail → top-level navigation to the SPA page /exports/:id<br/>(the cookie may be withheld on this cross-site navigation — the HTML needs no auth)
+  UI->>API: GET /api/auth/me (same-site fetch → cookie sent)
+  alt 401
+    UI->>UI: redirect /login?next=/exports/:id → back after login
+  end
+  UI->>API: GET /api/exports/:id/download (fetch, credentials: include)
   API->>DB: requester? not expired? → audit outcome
-  API-->>UI: 200 PDF | 403 | 410
+  API-->>UI: 200 PDF blob → saved via object URL | 403 | 410 → message
 ```
+- **Why a page and not an API link (D-032):** the session cookie is `SameSite=Strict`, so a direct `/api/...` link clicked from Gmail or Outlook web arrives cross-site without the cookie and gets `401`. The SPA page's own `fetch` is same-site, so the cookie is sent.
+- **Return after login:** `next` is accepted only if it is a relative path starting with a single `/`. Anything else falls back to `/`, so the parameter can't be used as an open redirect.
 
 ## 2. Tech stack
 | Concern | Choice | Notes |
 |---|---|---|
-| Runtime | Node.js 24.21.0 | Runs `.ts` directly with native type stripping, so no build step for the server (D-022) |
+| Runtime | Node.js 24.21.0 | Runs `.ts` directly with native type stripping, so no build step for the server. `tsconfig`: `erasableSyntaxOnly`, `verbatimModuleSyntax`, `allowImportingTsExtensions`, `noEmit`, `strict` (D-022) |
 | HTTP | Express 5 | Async errors reach the error handler natively; works with Supertest (D-023) |
 | DB access | `pg` + hand-written parameterised SQL | No ORM; aggregations need `percentile_cont`, `FILTER` and window functions (D-024) |
 | Migrations | `node-pg-migrate` with **SQL** migration files | Up/down migrations, run with `npm run migrate` |
@@ -133,6 +147,7 @@ erDiagram
   imports ||--o{ import_rows : ""
   imports ||--o{ employee_changes : "import_id"
   exports ||--o{ export_downloads : ""
+  exchange_rates ||--o{ exchange_rate_changes : ""
 ```
 
 ### 3.1 Tables
@@ -142,6 +157,8 @@ erDiagram
 
 **`exchange_rates`**: `currency_code char(3) PK`, `inr_per_unit numeric(18,6) CHECK > 0`, `as_of date`, `updated_by FK`, `updated_at`. INR's row is fixed at 1.
 
+**`exchange_rate_changes`** (append-only, same trigger as `employee_changes`): `id`, `currency_code`, `old_inr_per_unit`, `new_inr_per_unit`, `old_as_of`, `new_as_of`, `changed_by`, `changed_at`. Written in the same transaction as the rate update.
+
 **`employees`**
 | Column | Type / constraint |
 |---|---|
@@ -150,7 +167,7 @@ erDiagram
 | first_name, last_name | text NOT NULL |
 | email | text UNIQUE NOT NULL (lower-case) |
 | job_title, department | text NOT NULL (trimmed) |
-| country_code | char(2) FK → countries |
+| country_code | char(2) FK → countries; changed only by a `relocation` change event |
 | hire_date | date NOT NULL |
 | base_salary | numeric(14,2) CHECK > 0 |
 | allowances | numeric(14,2) NOT NULL DEFAULT 0 CHECK ≥ 0 |
@@ -174,12 +191,12 @@ erDiagram
 |---|---|
 | id | bigint identity PK |
 | employee_id | uuid FK |
-| change_type | text CHECK in (`hire`,`annual_review`,`promotion`,`market_adjustment`,`correction`,`exit`,`exit_withdrawn`,`other`) |
+| change_type | text CHECK in (`hire`,`annual_review`,`promotion`,`market_adjustment`,`relocation`,`correction`,`exit`,`exit_withdrawn`,`other`) |
 | effective_date | date NOT NULL |
 | note | text NOT NULL (5–1000 chars) |
 | source | text CHECK in (`ui`,`import`,`seed`) |
 | changes | jsonb: `{ field: { old, new } }`, only the fields that changed |
-| base_salary, allowances, currency_code, job_title, department | snapshot of values **after** this change |
+| base_salary, allowances, currency_code, country_code, job_title, department | snapshot of values **after** this change; slips read currency and country from here, so pre-relocation slips keep the old currency |
 | changed_by | uuid FK → hr_users |
 | import_id, import_row_number | NULL unless `source = import`; UNIQUE together (retry guard) |
 | changed_at | timestamptz |
@@ -191,7 +208,8 @@ erDiagram
 | Column | Notes |
 |---|---|
 | id, uploaded_by, file_name | |
-| status | `validating` \| `awaiting_confirmation` \| `applying` \| `completed` \| `cancelled` \| `failed` |
+| status | `validating` \| `awaiting_confirmation` \| `applying` \| `completed` \| `cancelled` \| `expired` \| `failed` |
+| preview_expires_at | set when the preview becomes ready (+24 h) |
 | change_type, effective_date, note | applied to every change in the import |
 | file | bytea; the raw CSV, cleared once the import is completed, cancelled or failed |
 | counts | jsonb: `{ total, valid, toCreate, toUpdate, unchanged, rejected, created, updated }` |
@@ -200,7 +218,7 @@ erDiagram
 
 - **Partial unique index:** `CREATE UNIQUE INDEX one_active_import ON imports ((true)) WHERE status IN ('validating','awaiting_confirmation','applying')` (D-021).
 
-**`import_rows`**: `(import_id, row_number) PK`, `employee_code`, `raw jsonb`, `preview_outcome` (`create` \| `update` \| `unchanged` \| `rejected`), `outcome` (`created` \| `updated` \| `unchanged` \| `rejected` \| NULL until applied), `errors jsonb`, `applied_at`.
+**`import_rows`**: `(import_id, row_number) PK`, `employee_code`, `raw jsonb NULL` (set to NULL when the import ends), `preview_outcome` (`create` \| `update` \| `unchanged` \| `rejected`), `outcome` (`created` \| `updated` \| `unchanged` \| `rejected` \| NULL until applied), `errors jsonb`, `applied_at`.
 
 **`exports`** (audit of **every** export, plus the stored file for emailed ones)
 | Column | Notes |
@@ -220,7 +238,7 @@ erDiagram
 | Column | Notes |
 |---|---|
 | id | bigint identity |
-| type | `import_validate` \| `import_apply` \| `export_pdf` \| `export_cleanup` |
+| type | `import_validate` \| `import_apply` \| `import_expire` \| `export_pdf` \| `export_cleanup` |
 | payload | jsonb, e.g. `{ importId }` / `{ exportId }` |
 | status | `queued` \| `running` \| `completed` \| `failed` |
 | attempts, max_attempts | default max 3 |
@@ -273,14 +291,15 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 | **Reference data** | | |
 | `GET /api/countries` | Countries with currency | |
 | `GET /api/exchange-rates` | All rates with `as_of` | |
-| `PUT /api/exchange-rates/:currency` | Update one rate | `{inrPerUnit, asOf}`; INR is immutable |
+| `PUT /api/exchange-rates/:currency` | Update one rate | `{inrPerUnit, asOf}`; INR is immutable; writes `exchange_rate_changes` in the same transaction |
+| `GET /api/exchange-rates/history` | Rate change history | `currency` filter, newest first, paginated |
 | `GET /api/employees/filter-options` | Distinct departments and job titles | For filter dropdowns |
 | **Employees** | | |
 | `GET /api/employees` | List | `page`, `pageSize` (≤100), `sort` (whitelist: `name`, `employeeCode`, `jobTitle`, `department`, `country`, `hireDate`, `annualSalary`), `order`, `q`, `country`, `department`, `jobTitle`, `status`, `currency` (default INR). Returns `{items, total, page, pageSize, ratesAsOf}` |
 | `POST /api/employees` | Create | Writes the employee and a `hire` change in one transaction |
 | `GET /api/employees/:id` | Detail | Includes `version` and the derived `status` |
 | `PATCH /api/employees/:id` | Edit non-audited fields (name, email) | `{version, …}`; `409 VERSION_CONFLICT` on a stale version |
-| `POST /api/employees/:id/changes` | Audited change event | `{version, changeType, effectiveDate, note, baseSalary?, allowances?, jobTitle?, department?}`; at least one field must actually change |
+| `POST /api/employees/:id/changes` | Audited change event | `{version, changeType, effectiveDate, note, baseSalary?, allowances?, jobTitle?, department?, countryCode?}`; at least one field must actually change. `countryCode` is accepted **only** with `changeType = relocation`, and then `baseSalary` and `allowances` are required (D-033) |
 | `GET /api/employees/:id/changes` | History timeline | Newest first |
 | `POST /api/employees/:id/exit` | Record resignation or termination | `{version, exitType, noticeDate, lastWorkingDay, note}` |
 | `POST /api/employees/:id/exit/withdraw` | Withdraw while on notice | `{version, note}` |
@@ -299,13 +318,13 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 | `GET /api/imports` | Import history | Paginated |
 | `GET /api/imports/:id` | Status, counts, first 100 rejected rows | Polled by the UI |
 | `GET /api/imports/:id/rejected.csv` | Rejected rows plus an `error` column | |
-| `POST /api/imports/:id/confirm` | `awaiting_confirmation` → `applying` | `409 INVALID_STATE` otherwise |
+| `POST /api/imports/:id/confirm` | `awaiting_confirmation` → `applying` | `410 GONE` if `now ≥ preview_expires_at` or the import is `expired`; `409 INVALID_STATE` for other states |
 | `POST /api/imports/:id/cancel` | `validating` or `awaiting_confirmation` → `cancelled` | Any HR user |
 | **Exports** | | |
 | `GET /api/exports/employees` | Direct download | `format=csv\|xlsx\|pdf` plus the list filters. PDF with > 1,000 rows → `422 EXPORT_TOO_LARGE` (the UI then offers email) |
 | `POST /api/exports/employees/email` | Queue a large PDF | List filters; `202 {exportId}`; sent to the requester's own email |
 | `GET /api/exports` | My emailed exports and their status | |
-| `GET /api/exports/:id/download` | Download an emailed export | `403` if not the requester, `410` if expired or deleted; every attempt audited |
+| `GET /api/exports/:id/download` | Download an emailed export | Called by the SPA page `/exports/:id` with `fetch`, not linked directly. `403` if not the requester, `410` if expired or deleted; every attempt audited |
 
 ## 5. Folder structure
 ```
@@ -343,8 +362,9 @@ salary-management/
       ├─ main.tsx  App.tsx  theme.ts
       ├─ api/              # fetch client (credentials: include, error-shape parsing), query hooks
       ├─ components/       # shared UI (MoneyCell, StatusChip, ConfirmDialog, …)
-      └─ pages/            # Login, Employees, EmployeeDetail, EmployeeForm, Slip,
-                           # Insights, Imports, ImportDetail, Exports, ExchangeRates
+      └─ pages/            # Login (?next=), Employees, EmployeeDetail, EmployeeForm, Slip,
+                           # Insights, Imports, ImportDetail, Exports, ExportDownload (/exports/:id),
+                           # ExchangeRates
 ```
 
 ## 6. Security decisions
@@ -352,7 +372,7 @@ salary-management/
 |---|---|
 | **Passwords:** `crypto.scrypt` (N=2¹⁵, r=8, p=1) with a random 16-byte salt; compared with `timingSafeEqual`. On an unknown email, a dummy hash is still computed so response timing doesn't reveal whether the account exists (D-025). | Uses the built-in KDF rather than argon2id. scrypt is memory-hard and widely accepted, and avoids native modules. |
 | **Session:** HS256 JWT (`jose`) with `sub` and `exp` = 8 h, in a cookie set `httpOnly; SameSite=Strict; Path=/`. `Secure` is controlled by `COOKIE_SECURE`: true by default, false in `.env.example` for http://localhost. | A stateless token can't be revoked before expiry. Logout clears the cookie. With few users and 8 h expiry this is acceptable; a denylist is the upgrade path. |
-| **CSRF:** `SameSite=Strict`, plus every state-changing route requiring `Content-Type: application/json` or `multipart/form-data` from the same origin. | No CSRF token. That's safe for modern browsers with SameSite=Strict. |
+| **CSRF:** the `SameSite=Strict` session cookie is what protects us. A cross-site form or request, including a multipart form post, is sent without the cookie, so it is unauthenticated. | No CSRF token. Relies on browsers enforcing SameSite, which all current browsers do. Side effect: links from outside the app (email) must land on an SPA page, not an API URL (D-032). |
 | **Authorisation:** `requireAuth` is applied router-wide under `/api`; only login is exempt. Export downloads also check `requested_by = user.id`. | A single role (D-008), so there's no per-record ACL apart from exports. |
 | **Input validation:** zod schemas on every body and query; sort fields come from a whitelist mapped to SQL column expressions; unknown fields are rejected. | |
 | **SQL:** parameterised only (`$1…`). No string-built SQL except whitelisted identifiers from a fixed map. | Hand-written SQL needs care, so review and tests cover it. |
@@ -362,7 +382,9 @@ salary-management/
 | **Logging:** pino logs `requestId`, method, route, status and duration. `redact` removes `req.headers.cookie`, `authorization` and `set-cookie`. Bodies and query strings are never logged, and job errors log codes and messages only. | Debugging data problems needs a DB query rather than log reading. That's the intended privacy trade. |
 | **Audit:** `employee_changes` (who, what, old → new, when, note) and `export_downloads` are append-only, enforced by a DB trigger. Every export is recorded in `exports`. | Name and email edits aren't audited (D-011). |
 | **Spreadsheet formula injection:** CSV and Excel cells starting with `= + - @ \t \r` are prefixed with `'`. | The value looks slightly different when opened in a text editor. |
-| **Emailed exports:** sent only to the requester's address, with a link but no attachment. Downloading needs the same user's session, the link expires in 24 h, and the file is deleted by a delayed cleanup job (D-018). | A colleague can't receive an export. |
+| **Emailed exports:** sent only to the requester's address, with a link to the app page `/exports/:id` and no attachment. Downloading needs the same user's session, the link expires in 24 h, and the file is deleted by a delayed cleanup job (D-018, D-032). Login's `next` parameter only accepts relative paths. | A colleague can't receive an export. |
+| **Rate audit:** every exchange-rate update writes old → new, who and when to the append-only `exchange_rate_changes`. | |
+| **Import data minimisation:** the uploaded file and `import_rows.raw` are nulled when the import ends; previews expire after 24 h (D-031). | Rows rejected at apply time can't be downloaded as CSV after the import ends. |
 | **Secrets:** env only (`DATABASE_URL`, `JWT_SECRET` ≥ 32 chars, `SMTP_*`, `SEED_ADMIN_*`), validated at startup. `.env.example` is committed and `.env` is git-ignored. | |
 
 ## 7. Performance decisions
@@ -388,6 +410,8 @@ salary-management/
 | **Job queue (D-030):** claimed with `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`, which sets `running`, increments `attempts` and sets `locked_until = now + 5 min`. A job that throws is re-queued with backoff (`run_after = now + attempts × 10 s`) until `max_attempts`, then marked failed (and its import/export is marked failed). A crashed worker's job is re-claimed once its lease expires. All time comparisons use the injected clock, passed as a SQL parameter. | Polling every 1 s adds up to 1 s of pickup latency. One worker loop processes jobs **serially**, so an import apply can delay an export by up to a minute, which is acceptable at this volume. |
 | **Idempotent handlers (D-020):** apply skips rows that have `applied_at`; a unique index on `(import_id, import_row_number)` blocks duplicate history; the export skips rebuilding an existing file; `email_sent_at` is set at most once (claimed with `WHERE email_sent_at IS NULL`); cleanup is a no-op if already deleted. | A hard crash during the SMTP call can lose the email. The link is still on the Exports page. |
 | **One active import:** a partial unique index; a unique violation maps to `409 IMPORT_IN_PROGRESS` (D-021). | |
+| **Preview expiry:** a delayed `import_expire` job plus a check at confirm time (D-031). Both are idempotent, and expiry releases the single-import lock. | |
+| **Relocation:** country and salary change in one event and one transaction; the snapshot holds the new `country_code` and `currency_code` (D-033). | |
 | **Health:** `GET /health` runs `SELECT 1` with a 1 s timeout → `200` or `503`. | |
 | **Graceful shutdown:** on SIGTERM/SIGINT, stop accepting HTTP, let the worker finish its current row or job step, then close the pool. | |
 | **Structured logs:** each request gets an ID (incoming `X-Request-Id` or `randomUUID()`), echoed in the response header and in every error body. Worker logs carry `jobId` and `type`. | |
@@ -403,8 +427,8 @@ salary-management/
 |---|---|---|
 | **Unit** (no DB, no HTTP) | Password hash/verify, money and rounding, status derivation, change diffing and validation (effective-date rules, note), exit and withdraw rules, slip calculation, CSV row validation, upload checks, formula escaping, job retry/backoff decisions | Services get fake in-memory repositories, a fixed `Clock` and a fake mailer |
 | **Integration** | Routes + repositories + SQL: auth, list/filter/sort/search, optimistic locking, history immutability, conversion and insight queries (with exact expected numbers from small fixtures), the import pipeline, exports, download rules, the queue | Supertest against `createApp(deps)` on a **real PostgreSQL test DB** (`TEST_DATABASE_URL`), migrated once in global setup and truncated between tests. The worker is driven with `worker.runOnce()`, with no timers. |
-| **Acceptance (required)** | T1–T10 from the requirements (§11) | Integration tests named after the requirement ID |
-| **Web** | A few behaviour tests on key screens (login, import preview actions, export too-large flow) | React Testing Library with `fetch` mocked |
+| **Acceptance (required)** | T1–T14 from the requirements (§11) | Integration tests (T11 is also a web test) named after the requirement ID |
+| **Web** | A few behaviour tests on key screens (login and `next` redirect, import preview actions, export too-large flow, export download page) | React Testing Library with `fetch` mocked |
 
 ## 9. Configuration (`.env.example`)
 ```
@@ -415,7 +439,7 @@ TEST_DATABASE_URL=postgres://user:pass@localhost:5432/salary_management_test
 JWT_SECRET=change-me-to-a-random-32+-char-string
 COOKIE_SECURE=false
 CORS_ORIGIN=http://localhost:5173
-APP_BASE_URL=http://localhost:5173          # used in export email links
+APP_BASE_URL=http://localhost:5173          # SPA origin; email links point to $APP_BASE_URL/exports/:id
 SMTP_HOST=localhost
 SMTP_PORT=1025                              # Mailpit
 SMTP_FROM="Salary Management <no-reply@acme.local>"
