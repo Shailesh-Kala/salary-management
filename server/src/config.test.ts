@@ -13,6 +13,7 @@ describe('loadConfig', () => {
       PORT: 3000,
       COOKIE_SECURE: true,
       CORS_ORIGIN: 'http://localhost:5173',
+      APP_TIMEZONE: 'Asia/Kolkata',
       ...required,
     });
   });
@@ -25,6 +26,10 @@ describe('loadConfig', () => {
       PORT: 8080,
       COOKIE_SECURE: false,
     });
+  });
+
+  it('rejects an unknown time zone', () => {
+    expect(() => loadConfig({ ...required, APP_TIMEZONE: 'Mars/Olympus' })).toThrow(/APP_TIMEZONE/);
   });
 
   it('fails fast naming each invalid or missing variable', () => {
