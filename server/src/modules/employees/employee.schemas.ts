@@ -66,3 +66,15 @@ export const listEmployeesQuery = z.object({
 });
 
 export type ListEmployeesQuery = z.infer<typeof listEmployeesQuery>;
+
+/** Only fields that aren't audited; salary, title, department, country and dates need a change event. */
+export const updateProfileSchema = z
+  .strictObject({
+    version: z.int().min(1),
+    firstName: text.optional(),
+    lastName: text.optional(),
+    email: z.string().trim().toLowerCase().pipe(z.email()).optional(),
+  })
+  .refine((p) => p.firstName ?? p.lastName ?? p.email, 'Nothing to update');
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

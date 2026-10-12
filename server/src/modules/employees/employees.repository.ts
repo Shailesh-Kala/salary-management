@@ -36,6 +36,8 @@ export type NewEmployee = Pick<
   | 'allowances'
 >;
 
+export type EmployeeDetail = EmployeeRow & { currencyCode: string; countryName: string };
+
 /** Values in effect after a change. */
 export type Snapshot = Pick<
   EmployeeRow,
@@ -97,6 +99,8 @@ const SORT_SQL: Record<ListEmployeesQuery['sort'], string[]> = {
 };
 
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
+
+const COUNTRY_COLUMNS = `c.currency_code AS "currencyCode", c.name AS "countryName"`;
 
 /** Repositories bound to one connection, so callers can run them inside a transaction. */
 export function employeeRepositories(db: Pool | PoolClient) {
@@ -176,10 +180,44 @@ export function employeeRepositories(db: Pool | PoolClient) {
         };
       },
 
+      findById: async (id: string) =>
+        (
+          await db.query<EmployeeDetail>(
+            `SELECT ${EMPLOYEE_COLUMNS}, ${COUNTRY_COLUMNS}
+               FROM employees JOIN countries c ON c.code = employees.country_code
+              WHERE employees.id = $1`,
+            [id],
+          )
+        ).rows[0] ?? null,
+
+      /** Returns null when the id is unknown or `version` is stale (optimistic locking). */
+      updateProfile: async (
+        id: string,
+        version: number,
+        fields: Partial<Pick<EmployeeRow, 'firstName' | 'lastName' | 'email'>>,
+        now: Date,
+      ) =>
+        (
+          await db.query<EmployeeDetail>(
+            `WITH updated AS (
+               UPDATE employees
+                  SET first_name = coalesce($3, first_name),
+                      last_name = coalesce($4, last_name),
+                      email = coalesce($5, email),
+                      version = version + 1,
+                      updated_at = $6
+                WHERE id = $1 AND version = $2
+                RETURNING *)
+             SELECT ${EMPLOYEE_COLUMNS}, ${COUNTRY_COLUMNS}
+               FROM updated JOIN countries c ON c.code = updated.country_code`,
+            [id, version, fields.firstName, fields.lastName, fields.email, now],
+          )
+        ).rows[0] ?? null,
+
       findCountry: async (code: string) =>
         (
-          await db.query<{ code: string; currencyCode: string }>(
-            'SELECT code, currency_code AS "currencyCode" FROM countries WHERE code = $1',
+          await db.query<{ code: string; currencyCode: string; name: string }>(
+            'SELECT code, name, currency_code AS "currencyCode" FROM countries WHERE code = $1',
             [code],
           )
         ).rows[0] ?? null,

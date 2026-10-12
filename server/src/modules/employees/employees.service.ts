@@ -1,7 +1,11 @@
 import type { Clock } from '../../lib/clock.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
-import type { CreateEmployeeInput, ListEmployeesQuery } from './employee.schemas.ts';
+import type {
+  CreateEmployeeInput,
+  ListEmployeesQuery,
+  UpdateProfileInput,
+} from './employee.schemas.ts';
 import type { EmployeeRepos } from './employees.repository.ts';
 import { employeeStatus } from './status.ts';
 
@@ -21,12 +25,34 @@ const AUDITED_ON_HIRE = [
   'countryCode',
 ] as const;
 
+const notFound = () => new AppError('NOT_FOUND', 404, 'Employee not found');
+
 const invalid = (path: string, message: string) =>
   new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
 
 export function createEmployeesService({ clock, repos, inTransaction }: EmployeesServiceDeps) {
   return {
     filterOptions: () => repos.employees.filterOptions(),
+
+    async get(id: string) {
+      const employee = await repos.employees.findById(id);
+      if (!employee) throw notFound();
+      return { ...employee, status: employeeStatus(employee.lastWorkingDay, clock.today()) };
+    },
+
+    async updateProfile(id: string, { version, ...fields }: UpdateProfileInput) {
+      const updated = await repos.employees.updateProfile(id, version, fields, clock.now());
+      if (updated)
+        return { ...updated, status: employeeStatus(updated.lastWorkingDay, clock.today()) };
+      if (await repos.employees.findById(id)) {
+        throw new AppError(
+          'VERSION_CONFLICT',
+          409,
+          'This employee was changed by someone else. Reload to see the latest details.',
+        );
+      }
+      throw notFound();
+    },
 
     async list(query: ListEmployeesQuery) {
       const rates = await repos.employees.ratesInfo(query.currency);
@@ -71,6 +97,7 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
         return {
           ...employee,
           currencyCode: country.currencyCode,
+          countryName: country.name,
           status: employeeStatus(employee.lastWorkingDay, clock.today()),
         };
       });
