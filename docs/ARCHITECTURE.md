@@ -301,7 +301,7 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 |---|---|---|
 | `GET /health` | Liveness and DB check | `200 {status:"ok", db:"ok"}` or `503` |
 | **Auth** | | |
-| `POST /api/auth/login` | Email + password → sets cookie | Rate limited (5/min per IP+email); generic failure message |
+| `POST /api/auth/login` | Email + password → sets cookie | Rate limited (5/min per IP+email **and** 20/min per IP across all emails); generic failure message |
 | `POST /api/auth/logout` | Increments `token_version` (ends all of this user's sessions) and clears the cookie | |
 | `GET /api/auth/me` | Current user | |
 | **Reference data** | | |
@@ -394,7 +394,7 @@ salary-management/
 | **Authorisation:** `requireAuth` is applied router-wide under `/api`; only login is exempt. Export downloads also check `requested_by = user.id`. | A single role (D-008), so there's no per-record ACL apart from exports. |
 | **Input validation:** zod schemas on every body and query; sort fields come from a whitelist mapped to SQL column expressions; unknown fields are rejected. | |
 | **SQL:** parameterised only (`$1…`). No string-built SQL except whitelisted identifiers from a fixed map. | Hand-written SQL needs care, so review and tests cover it. |
-| **Rate limits:** login 5/min per IP+email; API 300/min per user (`express-rate-limit`, in-memory store). | An in-memory store is per process, which is fine for a single instance. A Redis store is the upgrade path if the app is ever scaled out. |
+| **Rate limits:** login 5/min per IP+email (slows guessing one account) **and** 20/min per IP whatever the email (stops one IP spraying many accounts) (D-042); API 300/min per user (`express-rate-limit`, in-memory store). | An in-memory store is per process, which is fine for a single instance. A Redis store is the upgrade path if the app is ever scaled out. |
 | **Headers and CORS:** `helmet` defaults (CSP, HSTS when Secure, `X-Content-Type-Options`, etc.); CORS allows only `CORS_ORIGIN`, with credentials. | |
 | **Body limits:** JSON 100 kB; multipart 5 MB, one file, `.csv` / `text/csv` only. | |
 | **Logging:** pino logs `requestId`, method, route, status and duration. `redact` removes `req.headers.cookie`, `authorization` and `set-cookie`. Bodies and query strings are never logged, and job errors log codes and messages only. | Debugging data problems needs a DB query rather than log reading. That's the intended privacy trade. |

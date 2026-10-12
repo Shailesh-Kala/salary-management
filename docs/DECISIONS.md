@@ -261,3 +261,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Load rates in the seed script only (countries need rates through their FK, so the app would be unusable before seeding); duplicate the data in a test fixture.
 - **Why:** Countries and rates are needed in every environment, including an unseeded one; one SQL source of truth for both the app and tests.
 - **Trade-off:** The function resets rates to the snapshot if called again, so only the migration, the seed and tests call it (noted in the migration).
+
+## D-042 — Two login rate limits: per IP + email and per IP
+- **What:** Login is limited to 5 attempts/min per IP + email and, independently, 20 attempts/min per IP regardless of email.
+- **Alternatives:** Per IP + email only; per IP only; account lockout after N failures.
+- **Why:** The per-email limit slows guessing one account; the per-IP limit stops one machine spraying a common password across many accounts. Lockout would let anyone lock HR out by typing their email.
+- **Trade-off:** Several HR users behind one office NAT share the 20/min budget — ample for normal logins.

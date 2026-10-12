@@ -314,7 +314,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 - **Every request re-checks the user:** the token carries the user's `token_version`, and each request looks the user up by ID. It is rejected with `401` if the user is disabled or the version no longer matches.
   - **Logout** and **disable** both increment `token_version`, so every existing session for that user ends at once, on all devices.
 - Every endpoint except `/health` and `/auth/login` requires authentication.
-- **Login rate limit:** 5 attempts per minute per IP and email. Failed logins return a generic message.
+- **Login rate limits:** 5 attempts per minute per IP and email, **and** 20 attempts per minute per IP whatever email is used, so one machine can't try many accounts. Failed logins return a generic message.
 - **Logs:** request IDs, routes, status codes and timings only. No salary values, names, emails, change notes or request bodies.
 - **CORS** is limited to the frontend origin, and security headers are set.
 - **Data minimisation:** see §6. Exports are themselves audited (§4.8), because a file of everyone's salary is the biggest leak risk.

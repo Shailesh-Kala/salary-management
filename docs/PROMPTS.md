@@ -341,3 +341,16 @@ next
 ```
 
 **Response:** TDD: failing tests (round-trip, wrong password, self-describing salted format, six malformed stored hashes return false instead of throwing), then `password.ts` using built-in `crypto.scrypt` (N=2^15, r=8, p=1, 16-byte salt, 64-byte key, `timingSafeEqual`, maxmem raised to 64 MiB). ~96 ms per verify. 29 tests pass.
+
+---
+
+## 19. Phase 3 — Task 5 follow-up (review notes)
+
+```text
+Looks good, thanks. A few small things:
+- Please confirm verify and hash use async crypto.scrypt, not scryptSync, so a login doesn't block the server.
+- The login limit is per IP + email, so one IP can try many different emails. In Task 7, please also add a per-IP limit (say 20/min) no matter which email is used.
+- When a stored hash is malformed, log a warning (without the hash) so we notice bad data, while still returning false.
+```
+
+**Response:** Confirmed only async callback `scrypt` is used (grep: no `scryptSync`). TDD: `verifyPassword` takes an optional logger and warns "stored password hash is malformed" (no hash) for malformed formats and for parameters scrypt refuses; no warning for a wrong password. Added a 20/min per-IP login limit to Task 7, REQUIREMENTS and ARCHITECTURE; logged D-042. 31 tests pass.
