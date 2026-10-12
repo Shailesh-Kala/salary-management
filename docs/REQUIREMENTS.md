@@ -132,6 +132,7 @@ We deliberately don't compare a job title *across* countries in local currency, 
    - its header doesn't match the template
    - it has **0 rows or > 20,000 rows**
    - the import form is missing the **change type, effective date or note**. These apply to every change in the file, e.g. *"FY26 annual review"*.
+   - **another import is already in progress**, meaning queued, validating, waiting in preview, or applying. The API returns `409 Conflict` with a link to that import, and nothing is queued.
 3. **Queued for validation:** on success the API returns an **import job ID** at once (`202 Accepted`). Validation runs in the background queue (F9), and HR can leave the page.
 4. **Preview (validation only, nothing saved):**
    - Every row is validated: field rules as in §4.2, duplicate codes or emails inside the file, and conflicts with existing employees.
@@ -149,7 +150,11 @@ We deliberately don't compare a job title *across* countries in local currency, 
    - Every salary, title, department or lifecycle change creates a change-history entry with `source = import`, using the import's change type, effective date and note.
 7. **Final report:** totals **created, updated, unchanged, rejected**, plus the rejected-rows CSV. HR fixes the rejected rows and **re-uploads just that file**. This is safe because import upserts by employee code.
 8. **Import history:** a list of past imports with status, who uploaded each one, when, and its counts.
-9. **Concurrency:** only one import **applies** at a time, and others wait in the queue, so two imports can never race on the same employees. Previews can run in parallel.
+9. **Concurrency: one active import at a time, across all HR users.**
+   - A new upload is refused while another import is queued, validating, waiting in preview, or applying.
+   - This is enforced by a database constraint, so two uploads at the same moment can't both get through.
+   - This means a preview can never be built on data that another import is about to change, and two imports can never race on the same employees.
+   - Any HR user can open the pending import and **cancel** it, so a forgotten preview can't block imports indefinitely.
 
 Lifecycle changes (resignations) are done in the UI, not by import.
 
@@ -175,7 +180,11 @@ Lifecycle changes (resignations) are done in the UI, not by import.
 - Import and large-export jobs run in a **persistent queue stored in PostgreSQL**, so no extra infrastructure (Redis, etc.) is needed and jobs survive an API restart.
 - **Job lifecycle:** `queued → running → completed | failed`. Imports add two states: `awaiting_confirmation` (the preview is ready) and `cancelled`.
   - A job interrupted by a crash or restart is retried automatically, up to 3 attempts.
-  - Each import row is applied idempotently by `employee_code`, so a retry never duplicates data.
+- **Retries never repeat finished work:**
+  - **Import validation:** writes nothing to employee data, so re-running it simply rebuilds the preview rows (replaced per row number).
+  - **Import apply:** each row's **outcome is saved in the same transaction** as its employee and history changes. On retry, rows that already have a final outcome are **skipped**. A crash therefore never applies a row twice or creates duplicate history entries.
+  - **Large PDF export:** the job records its progress on the export. If the file already exists, it isn't rebuilt. The email is **marked as sent before it is sent** (at most once). If sending fails with an error, the mark is cleared so a retry can try again. A retry therefore never emails the user twice. In the rare case of a hard crash mid-send, the email may be lost, but the download link is still on the job status page.
+  - **Cleanup:** deleting an already-deleted file is a no-op.
 - **Delayed jobs:** a job can be scheduled to run at a given time. This is used to delete export files at link expiry.
 - **Job status page:** HR sees their jobs with type, status, progress (rows processed for imports), created and finished times, and links to the report or file. The UI polls for status while a job is running.
 - **Email:** sent over SMTP using settings from environment variables. For local runs, a local mail catcher (e.g. Mailpit) is used, so no real email leaves the machine.
@@ -242,9 +251,9 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 
 **Background job:** `id`, `type` (`import_validate` \| `import_apply` \| `export_pdf` \| `export_cleanup`), `status` (`queued` \| `running` \| `awaiting_confirmation` \| `completed` \| `cancelled` \| `failed`), `run_after`, `attempts`, `payload` (import file and form fields, or export filters), `progress`, `result` (import counts / file reference), `error`, `created_by`, `created_at`, `started_at`, `finished_at`.
 
-**Import row:** `job_id`, `row_number`, `employee_code`, `outcome` (`valid` \| `rejected` at preview; `created` \| `updated` \| `unchanged` \| `rejected` after apply), `errors`, `raw_row` (the original values, for the rejected-rows CSV).
+**Import row:** `job_id`, `row_number`, `employee_code`, `outcome` (`valid` \| `rejected` at preview; `created` \| `updated` \| `unchanged` \| `rejected` after apply, written in the same transaction as the row's changes), `errors`, `raw_row` (the original values, for the rejected-rows CSV), `applied_at`.
 
-**Export file:** `job_id`, `requested_by` (only this user may download), file content (deleted at expiry), `expires_at` (24 h), `deleted_at`.
+**Export file:** `job_id`, `requested_by` (only this user may download), file content (deleted at expiry), `expires_at` (24 h), `email_sent_at` (guards against re-sending on retry), `deleted_at`.
 
 **Country** (reference data, seeded): `code`, `name`, `currency_code` (ISO 4217).
 
@@ -280,7 +289,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 | Slip (HTML / PDF) | p95 < 300 ms / < 1 s |
 | CSV import | Upload checks respond in < 1 s. For 10,000 rows: preview ready in < 15 s, apply (one transaction per row) finishes in < 60 s |
 | Export | CSV and Excel: 10,000 rows streamed in < 5 s. PDF: ≤ 1,000 rows directly in < 5 s; 10,000-row background PDF job in < 60 s |
-| Job queue | A job is picked up within 5 s of being queued; one import runs at a time |
+| Job queue | A job is picked up within 5 s of being queued; one active import at a time |
 | Seed | 10,000 deterministic employees in < 10 s (measured and documented) |
 | Availability | Single local instance; `/health` endpoint checks the DB; graceful shutdown |
 | Browsers | Latest Chrome, Edge, Firefox, Safari on desktop |
@@ -332,6 +341,9 @@ These are written first (TDD) in Phase 3 and must stay green.
 | T5 | **Download link rejects expired links:** with an injected clock past `expires_at`, the requester gets `410`; the attempt is audited. |
 | T6 | **File deleted at expiry:** running the cleanup job removes the file content and sets `deleted_at`. |
 | T7 | **Import creates history:** a salary change applied by import writes a change-history entry with `source = import` and the import's note. |
+| T8 | **Import retry skips finished rows:** an apply job that fails part-way (failure injected after N rows) and is then retried applies every row exactly once. Employee values are correct, each changed row has exactly one history entry, and rows done before the failure are not re-processed. |
+| T9 | **Export retry doesn't re-send email:** an export job that fails after the email is sent and is then retried sends the email exactly once (fake mailer call count = 1). A job that fails *before* sending sends it exactly once on retry. |
+| T10 | **One active import:** uploading while another import is queued, validating, in preview or applying returns `409` and queues nothing. After that import is cancelled or finished, a new upload is accepted. |
 
 ## 12. Open questions
 None at the moment.

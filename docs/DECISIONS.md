@@ -106,6 +106,7 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Recipient must log in to download; adds SMTP config and a mail catcher for local runs.
 
 ## D-017 — PostgreSQL-backed job queue
+> **Amended by D-020** — retries must be idempotent (skip finished rows, never re-send email).
 - **What:** Background jobs stored in PostgreSQL and picked up by a worker in the API process (`SELECT … FOR UPDATE SKIP LOCKED` or a library built on it, chosen in Phase 2). Retries up to 3 attempts.
 - **Alternatives:** Redis + BullMQ; in-memory queue.
 - **Why:** No extra infrastructure for a reviewer to install; jobs survive restarts (unlike in-memory); throughput needs are tiny (a few jobs per day).
@@ -123,3 +124,14 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Why:** HR sees the outcome before anything is saved. Per-row transactions mean one failing row never rolls back good ones, and re-upload of fixed rows is safe because of upsert by employee code.
 - **Trade-off:** Slower than batched writes (10k transactions — target < 60 s); data can change between preview and apply, handled by re-validating at apply time; staged rows are stored until the import finishes or is cancelled.
 
+## D-020 — Idempotent job retries
+- **What:** Import apply saves each row's outcome in the same transaction as that row's employee and history changes; on retry, rows with a final outcome are skipped. Import validation only rebuilds preview rows, so re-running it is harmless. Export jobs skip rebuilding an existing file and mark `email_sent_at` before sending (cleared if the send fails with an error), so a retry never re-sends. Cleanup is a no-op on an already-deleted file.
+- **Alternatives:** Rely on upsert by `employee_code` alone; mark the email sent only after a successful send (at-least-once).
+- **Why:** Upsert alone makes the employee row correct but still writes a second history entry and re-runs work; with one transaction per row a crash always leaves a partial import, so the row outcome must be the single source of truth for "done". At-least-once email could message the user twice after a crash between send and mark.
+- **Trade-off:** At-most-once email: a hard crash during the SMTP call can lose the email — the download link is still on the job status page. One extra write per row (in the same transaction, so negligible).
+
+## D-021 — One active import at a time, org-wide
+- **What:** A new upload is refused (`409`) while any import is queued, validating, awaiting confirmation, or applying — enforced by a database constraint (partial unique index on active import jobs). Any HR user can cancel the pending import.
+- **Alternatives:** Parallel previews with serialised apply (previous default); one active import per user.
+- **Why:** A preview built while another import is pending or applying could be stale by the time it is confirmed; a single active import keeps previews trustworthy and removes all import-vs-import races. A DB constraint closes the race between two simultaneous uploads.
+- **Trade-off:** A forgotten preview blocks other imports until someone cancels it; HR teams must coordinate on bulk uploads (expected to be rare).

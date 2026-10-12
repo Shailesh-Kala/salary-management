@@ -185,3 +185,22 @@ rejected-rows CSV, and the download link rejecting other users and expired links
 ```
 
 **Response:** Updated REQUIREMENTS.md: emailed exports go only to the requester's own address, link bound to the requester, 24 h expiry with file deletion via a scheduled cleanup job, downloads audited; import gains a preview → confirm/cancel step with per-row transactions and re-validation at apply. Added §11 required acceptance tests T1–T7 (to be written first in Phase 3) and logged D-018, D-019.
+
+---
+
+## 7. Phase 1 — Requirements (decisions log review)
+
+```text
+I went through the decisions log, it's looking good but a few things need fixing.
+
+1. Retries. D-017 retries jobs 3 times but nothing stops a retried import from running rows again that were already saved. With one transaction per row this matters even more, since a crash leaves some rows done. Please save the row result in the same transaction and skip finished rows on retry. Also don't send the export email again on retry. Add tests for both.
+2. Please remove "project owner wants" from all the reasons (D-002, D-009, D-010, D-012,
+D-013, D-015, D-016, D-018, D-019). Most of them already have the real reason right after it, so just keep that part.
+
+New:
+3. Can a new upload start while another one is waiting in preview? No can't upload new.
+4. D-014 says no cron job, but D-018 now adds a scheduled cleanup job. Update D-014's
+reason so it's about status never drifting from the dates instead.
+```
+
+**Response:** Added idempotent retries (row outcome saved in the row's transaction, finished rows skipped; export email marked sent before sending, never re-sent) as D-020; one active import org-wide, enforced by DB constraint, `409` otherwise, as D-021; reworded all "project owner" reasons and D-014's reason. Added acceptance tests T8–T10.
