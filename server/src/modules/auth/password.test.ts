@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { hashPassword, verifyPassword } from './password.ts';
 
 describe('password hashing', () => {
@@ -30,7 +30,28 @@ describe('password hashing', () => {
     ['missing parts', 'scrypt$32768$8$1$c2FsdA=='],
     ['non-numeric parameters', 'scrypt$abc$8$1$c2FsdA==$a2V5'],
     ['truncated key', 'scrypt$32768$8$1$c2FsdA==$a2V5'],
-  ])('rejects a malformed stored hash (%s) instead of throwing', async (_case, stored) => {
-    expect(await verifyPassword('anything', stored)).toBe(false);
+  ])('rejects a malformed stored hash (%s) and warns without logging it', async (_case, stored) => {
+    const log = { warn: vi.fn() };
+
+    expect(await verifyPassword('anything', stored, log)).toBe(false);
+    expect(log.warn).toHaveBeenCalledOnce();
+    expect(log.warn).toHaveBeenCalledWith('stored password hash is malformed');
+  });
+
+  it('rejects parameters scrypt refuses and warns', async () => {
+    const log = { warn: vi.fn() };
+    const valid = await hashPassword('pw');
+    const badN = valid.replace('scrypt$32768$', 'scrypt$1000$'); // N must be a power of two
+
+    expect(await verifyPassword('pw', badN, log)).toBe(false);
+    expect(log.warn).toHaveBeenCalledOnce();
+  });
+
+  it('does not warn for a well-formed hash with a wrong password', async () => {
+    const log = { warn: vi.fn() };
+    const hash = await hashPassword('right');
+
+    expect(await verifyPassword('wrong', hash, log)).toBe(false);
+    expect(log.warn).not.toHaveBeenCalled();
   });
 });
