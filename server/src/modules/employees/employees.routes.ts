@@ -1,9 +1,13 @@
 import { Router } from 'express';
-import { createEmployeeSchema } from './employee.schemas.ts';
+import { createEmployeeSchema, listEmployeesQuery } from './employee.schemas.ts';
 import type { EmployeesService } from './employees.service.ts';
 
 export function employeeRoutes(employees: EmployeesService) {
   const routes = Router();
+
+  routes.get('/employees', async (req, res) => {
+    res.json(await employees.list(listEmployeesQuery.parse(req.query)));
+  });
 
   routes.post('/employees', async (req, res) => {
     const input = createEmployeeSchema.parse(req.body);

@@ -44,7 +44,7 @@ function setup() {
     },
   } as unknown as EmployeeRepos;
   const clock = fixedClock('2026-10-12T09:00:00Z');
-  const service = createEmployeesService({ clock, inTransaction: (fn) => fn(repos) });
+  const service = createEmployeesService({ clock, repos, inTransaction: (fn) => fn(repos) });
   return { service, written, clock };
 }
 

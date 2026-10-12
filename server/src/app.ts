@@ -69,6 +69,7 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   const { publicRoutes, protectedRoutes } = authRoutes(auth, config);
   const employees = createEmployeesService({
     clock,
+    repos: employeeRepositories(db),
     inTransaction: (fn) => withTransaction(db, (client) => fn(employeeRepositories(client))),
   });
 

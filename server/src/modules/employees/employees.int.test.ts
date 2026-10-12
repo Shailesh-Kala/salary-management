@@ -113,6 +113,7 @@ describe('create is atomic', () => {
   it('leaves no employee behind when writing the hire change fails', async () => {
     const service = createEmployeesService({
       clock: fixedClock(),
+      repos: employeeRepositories(testPool),
       inTransaction: (fn) =>
         withTransaction(testPool, (client) => fn(employeeRepositories(client))),
     });

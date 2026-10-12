@@ -1,12 +1,14 @@
 import type { Clock } from '../../lib/clock.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
-import type { CreateEmployeeInput } from './employee.schemas.ts';
+import type { CreateEmployeeInput, ListEmployeesQuery } from './employee.schemas.ts';
 import type { EmployeeRepos } from './employees.repository.ts';
 import { employeeStatus } from './status.ts';
 
 export type EmployeesServiceDeps = {
   clock: Clock;
+  /** Repositories on the pool, for reads outside a transaction. */
+  repos: EmployeeRepos;
   /** Runs `fn` with repositories that share one database transaction. */
   inTransaction: <T>(fn: (repos: EmployeeRepos) => Promise<T>) => Promise<T>;
 };
@@ -22,8 +24,16 @@ const AUDITED_ON_HIRE = [
 const invalid = (path: string, message: string) =>
   new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
 
-export function createEmployeesService({ clock, inTransaction }: EmployeesServiceDeps) {
+export function createEmployeesService({ clock, repos, inTransaction }: EmployeesServiceDeps) {
   return {
+    async list(query: ListEmployeesQuery) {
+      const rates = await repos.employees.ratesInfo(query.currency);
+      if (!rates.known) throw invalid('currency', 'Unknown currency');
+      const { items, total } = await repos.employees.list(query, clock.today());
+      const { page, pageSize, currency } = query;
+      return { items, total, page, pageSize, currency, ratesAsOf: rates.asOf };
+    },
+
     async create(input: CreateEmployeeInput, actor: AuthUser) {
       if (input.hireDate > clock.today()) {
         throw invalid('hireDate', 'Hire date cannot be in the future');
