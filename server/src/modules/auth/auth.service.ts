@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { AppError } from '../../lib/errors.ts';
-import { hashPassword, verifyPassword } from './password.ts';
+import { hashPassword, verifyPassword, type WarnLog } from './password.ts';
 import type { SessionTokens } from './session-tokens.ts';
 import { type HrUser, normalizeEmail, type UsersRepository } from './users.repository.ts';
 
@@ -18,7 +18,7 @@ export function createAuthService({
   let dummyHash: Promise<string> | undefined;
 
   return {
-    async login(email: string, password: string, log?: { warn(msg: string): void }) {
+    async login(email: string, password: string, log: WarnLog) {
       const user = await users.findByEmail(normalizeEmail(email));
       // Unknown emails still pay for a hash, so response time doesn't reveal which accounts exist.
       const hash = user?.passwordHash ?? (await (dummyHash ??= hashPassword(randomUUID())));

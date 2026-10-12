@@ -1,17 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { hashPassword, verifyPassword } from './password.ts';
 
+const silent = { warn: () => {} };
+
 describe('password hashing', () => {
   it('verifies the password it hashed', async () => {
     const hash = await hashPassword('correct horse battery staple');
 
-    expect(await verifyPassword('correct horse battery staple', hash)).toBe(true);
+    expect(await verifyPassword('correct horse battery staple', hash, silent)).toBe(true);
   });
 
   it('rejects a wrong password', async () => {
     const hash = await hashPassword('correct horse battery staple');
 
-    expect(await verifyPassword('Correct horse battery staple', hash)).toBe(false);
+    expect(await verifyPassword('Correct horse battery staple', hash, silent)).toBe(false);
   });
 
   it('stores the algorithm and parameters, and salts each hash', async () => {
