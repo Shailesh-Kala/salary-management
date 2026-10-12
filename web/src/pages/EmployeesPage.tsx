@@ -1,12 +1,12 @@
-import { Alert, Box, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { DataGrid, type GridColDef, type GridSortModel } from '@mui/x-data-grid';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api/client.ts';
+import { type EmployeeStatus, useFilterOptions } from '../api/employees.ts';
+import { STATUS, StatusChip } from '../components/StatusChip.tsx';
 import { formatMoney } from '../lib/format.ts';
-
-type Status = 'active' | 'on_notice' | 'exited';
 
 type EmployeeListItem = {
   id: string;
@@ -20,7 +20,7 @@ type EmployeeListItem = {
   hireDate: string;
   annualSalary: string;
   convertedAnnualSalary: string;
-  status: Status;
+  status: EmployeeStatus;
 };
 
 type EmployeeList = {
@@ -28,19 +28,6 @@ type EmployeeList = {
   total: number;
   currency: string;
   ratesAsOf: string;
-};
-
-type FilterOptions = {
-  countries: { code: string; name: string }[];
-  departments: string[];
-  jobTitles: string[];
-  currencies: string[];
-};
-
-const STATUS: Record<Status, { label: string; color: 'success' | 'warning' | 'default' }> = {
-  active: { label: 'Active', color: 'success' },
-  on_notice: { label: 'On notice', color: 'warning' },
-  exited: { label: 'Exited', color: 'default' },
 };
 
 // Grid column ↔ API sort key.
@@ -128,11 +115,8 @@ export function EmployeesPage() {
     return () => clearTimeout(timer);
   }, [search, state.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const options = useQuery({
-    queryKey: ['employee-filter-options'],
-    queryFn: () => api<FilterOptions>('/employees/filter-options'),
-    staleTime: 5 * 60_000,
-  });
+  const options = useFilterOptions();
+  const navigate = useNavigate();
 
   const query = new URLSearchParams({
     page: String(state.page),
@@ -185,9 +169,7 @@ export function EmployeesPage() {
       headerName: 'Status',
       width: 120,
       sortable: false,
-      renderCell: ({ row }) => (
-        <Chip size="small" label={STATUS[row.status].label} color={STATUS[row.status].color} />
-      ),
+      renderCell: ({ row }) => <StatusChip status={row.status} />,
     },
   ];
 
@@ -197,9 +179,14 @@ export function EmployeesPage() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h4" component="h1">
-        Employees
-      </Typography>
+      <Stack direction="row" sx={{ alignItems: 'center' }}>
+        <Typography variant="h4" component="h1">
+          Employees
+        </Typography>
+        <Button component={Link} to="/employees/new" variant="contained" sx={{ ml: 'auto' }}>
+          Add employee
+        </Button>
+      </Stack>
 
       <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <TextField
@@ -275,6 +262,8 @@ export function EmployeesPage() {
           onSortModelChange={([s]) =>
             update(s ? { sort: SORT_BY_FIELD[s.field] ?? 'name', order: s.sort ?? 'asc' } : {})
           }
+          onRowClick={({ id }) => navigate(`/employees/${id}`)}
+          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
           disableColumnFilter
           disableRowSelectionOnClick
         />
