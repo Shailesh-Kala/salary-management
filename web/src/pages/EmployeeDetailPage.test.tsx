@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { employeeDetail, USER } from '../test/fixtures.ts';
+import { employeeDetail, FILTER_OPTIONS, historyEntry, USER } from '../test/fixtures.ts';
 import { json, mockApi, renderAt } from '../test/render.tsx';
 
 const user = () => userEvent.setup({ delay: null });
@@ -13,6 +13,10 @@ function setup(
   const calls = { get: 0, patches: [] as unknown[] };
   mockApi({
     'GET /api/auth/me': () => json(200, { user: USER }),
+    'GET /api/employees/filter-options': () => json(200, FILTER_OPTIONS),
+    'GET /api/employees/e1/changes': () => json(200, { items: [historyEntry()] }),
+    'GET /api/employees/missing/changes': () =>
+      json(404, { error: { code: 'NOT_FOUND', message: 'Employee not found' } }),
     'GET /api/employees/e1': () => {
       calls.get++;
       return json(200, employeeDetail());

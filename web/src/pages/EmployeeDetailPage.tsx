@@ -15,7 +15,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api/client.ts';
-import { type EmployeeDetail, fieldErrors } from '../api/employees.ts';
+import {
+  type EmployeeDetail,
+  fieldErrors,
+  type HistoryEntry,
+  useFilterOptions,
+} from '../api/employees.ts';
+import { ChangeDialog } from '../components/ChangeDialog.tsx';
+import { HistoryList } from '../components/HistoryList.tsx';
 import { StatusChip } from '../components/StatusChip.tsx';
 import { formatMoney } from '../lib/format.ts';
 
@@ -112,11 +119,16 @@ function EditProfileDialog({
 
 export function EmployeeDetailPage() {
   const { id } = useParams();
-  const [editing, setEditing] = useState(false);
+  const [dialog, setDialog] = useState<'profile' | 'change' | null>(null);
   const employee = useQuery({
     queryKey: ['employee', id],
     queryFn: () => api<EmployeeDetail>(`/employees/${id}`),
   });
+  const history = useQuery({
+    queryKey: ['employee-history', id],
+    queryFn: () => api<{ items: HistoryEntry[] }>(`/employees/${id}/changes`),
+  });
+  const countries = useFilterOptions().data?.countries ?? [];
 
   if (employee.isPending) return <CircularProgress aria-label="Loading employee" />;
   if (employee.isError) return <Alert severity="error">{employee.error.message}</Alert>;
@@ -135,9 +147,14 @@ export function EmployeeDetailPage() {
           {e.firstName} {e.lastName}
         </Typography>
         <StatusChip status={e.status} />
-        <Button variant="outlined" onClick={() => setEditing(true)} sx={{ ml: 'auto' }}>
-          Edit profile
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+          <Button variant="outlined" onClick={() => setDialog('profile')}>
+            Edit profile
+          </Button>
+          <Button variant="contained" onClick={() => setDialog('change')}>
+            Record change
+          </Button>
+        </Stack>
       </Stack>
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
@@ -170,7 +187,18 @@ export function EmployeeDetailPage() {
         </Paper>
       </Stack>
 
-      {editing && <EditProfileDialog employee={e} onClose={() => setEditing(false)} />}
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" component="h2">
+          History
+        </Typography>
+        {history.isError && <Alert severity="error">{history.error.message}</Alert>}
+        {history.data && <HistoryList entries={history.data.items} countries={countries} />}
+      </Paper>
+
+      {dialog === 'profile' && <EditProfileDialog employee={e} onClose={() => setDialog(null)} />}
+      {dialog === 'change' && (
+        <ChangeDialog employee={e} countries={countries} onClose={() => setDialog(null)} />
+      )}
     </Stack>
   );
 }

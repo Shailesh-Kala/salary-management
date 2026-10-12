@@ -43,3 +43,37 @@ export function fieldErrors(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {};
   return Object.fromEntries((error.details ?? []).map((d) => [d.path, d.message]));
 }
+
+export type HistoryEntry = {
+  id: string;
+  changeType: string;
+  effectiveDate: string;
+  note: string;
+  source: 'ui' | 'import' | 'seed';
+  changes: Record<string, { old: string | null; new: string | null }>;
+  snapshot: { currencyCode: string; countryCode: string };
+  changedBy: { id: string; name: string };
+  changedAt: string;
+};
+
+export const CHANGE_TYPE_LABELS: Record<string, string> = {
+  hire: 'Hired',
+  annual_review: 'Annual review',
+  promotion: 'Promotion',
+  market_adjustment: 'Market adjustment',
+  relocation: 'Relocation',
+  correction: 'Correction',
+  exit: 'Exit recorded',
+  exit_withdrawn: 'Exit withdrawn',
+  other: 'Other',
+};
+
+/** Types HR can record in the change dialog (hire and exit have their own flows). */
+export const RECORDABLE_CHANGE_TYPES = [
+  'annual_review',
+  'promotion',
+  'market_adjustment',
+  'relocation',
+  'correction',
+  'other',
+] as const;
