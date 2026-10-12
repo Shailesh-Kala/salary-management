@@ -1,17 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { pino } from 'pino';
+import type { Pool } from 'pg';
 import { createApp } from './app.ts';
 
-const app = createApp({ logger: pino({ level: 'silent' }) });
+const fakeDb = (query: () => Promise<unknown>) => ({ query }) as unknown as Pool;
+const logger = pino({ level: 'silent' });
+const app = createApp({ logger, db: fakeDb(async () => ({ rows: [] })) });
 
 describe('GET /health', () => {
   it('returns ok and echoes the incoming request id', async () => {
     const res = await request(app).get('/health').set('X-Request-Id', 'req-123');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body).toEqual({ status: 'ok', db: 'ok' });
     expect(res.headers['x-request-id']).toBe('req-123');
+  });
+
+  it('returns 503 when the database check fails', async () => {
+    const downApp = createApp({
+      logger,
+      db: fakeDb(async () => {
+        throw new Error('connection refused');
+      }),
+    });
+
+    const res = await request(downApp).get('/health');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ status: 'error', db: 'down' });
   });
 
   it('generates a request id when none is sent', async () => {
