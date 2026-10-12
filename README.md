@@ -4,9 +4,9 @@ Web-based salary management for ACME's HR Manager — replaces Excel for managin
 
 > Status: in development. Sections marked _TBD_ are filled in as the build progresses.
 
-## Live demo
-- Live URL: _TBD_
+## Demo
 - Demo video: _TBD_
+- Not deployed by design — runs locally (see [D-013](docs/DECISIONS.md)).
 
 ## Tech stack
 - Backend: Node.js + TypeScript, PostgreSQL (with migrations)
@@ -23,9 +23,6 @@ _TBD_
 _TBD_ — including measured timing.
 
 ## Test
-_TBD_
-
-## Deploy
 _TBD_
 
 ## Docs

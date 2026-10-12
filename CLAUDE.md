@@ -50,4 +50,4 @@ Rules for anyone (human or AI) contributing to this repo. They override defaults
 ## Documentation (keep updated as we go)
 - `docs/PROMPTS.md`: after each user message, append the prompt, the phase, and a 1–2 line summary of the response. Commit it with the related work.
 - `docs/DECISIONS.md`: log every meaningful decision — what, alternatives, why, trade-off.
-- `README.md`: setup, run, seed, test, deploy, live URL, demo video link, links to all docs.
+- `README.md`: setup, run, seed, test, demo video link, links to all docs. (No deployment — see D-013.)
