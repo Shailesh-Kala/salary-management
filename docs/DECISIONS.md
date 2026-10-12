@@ -68,6 +68,7 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** None material — any pivot gives identical cross-rates.
 
 ## D-011 — Audit salary, job title, department and lifecycle changes (supersedes D-005)
+> **Amended by D-033** — country changes (relocation) are audited too; snapshot includes country.
 - **What:** One append-only change-history table: old → new per changed field, plus a snapshot of salary/title in effect, effective date, change type, required note, source, who, when. Current values stay on the employee row.
 - **Alternatives:** Salary-only history (D-005); separate tables per field; generic audit of every column.
 - **Why:** Promotions change title and pay together, so they belong in one event; the snapshot keeps past-month slip lookups a single indexed query.
@@ -113,12 +114,14 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Polling adds a few seconds of pickup latency; not built for high job throughput (fine here).
 
 ## D-018 — Emailed exports go only to the requester, link bound to the requester
+> **Amended by D-032** — the email links to an app page, which downloads via `fetch`.
 - **What:** Large PDF exports are emailed only to the logged-in user's own account address (no recipient field, no domain allowlist). The link requires login **and** that the downloader is the requester (`403` otherwise), expires in 24 h (`410` after), and the file is deleted at expiry by a scheduled cleanup job. Every download and refused attempt is audited.
 - **Alternatives:** Typed-in recipient restricted to company domains (D-016); attaching the file.
 - **Why:** The link already needs an HR login, so sending to anyone else adds risk without value. Removes mistyped-address leaks entirely, and binding the link to the requester means a forwarded email is useless.
 - **Trade-off:** HR cannot hand an export to a colleague via the app; the colleague must run the export themselves. Needs delayed-job support in the queue for cleanup.
 
 ## D-019 — Import preview and confirm, one transaction per row
+> **Amended by D-031** — previews expire after 24 h; raw row data is cleared when the import ends.
 - **What:** Upload → background validation → preview (valid / rejected counts, rejected-rows CSV) → "Import valid rows" or "Cancel". Apply re-validates and upserts each row in its own transaction; changes create history entries with `source = import`. Cancel writes nothing.
 - **Alternatives:** Import immediately after validation (D-015); one transaction for the whole file; batched transactions.
 - **Why:** HR sees the outcome before anything is saved. Per-row transactions mean one failing row never rolls back good ones, and re-upload of fixed rows is safe because of upsert by employee code.
@@ -189,3 +192,33 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** pg-boss; graphile-worker; BullMQ (Redis).
 - **Why:** About 100 lines that cover everything needed (delay, retry, lease) with deterministic tests; domain state (preview, cancel, counts) lives in our own tables either way, so a library would add a second schema without removing code.
 - **Trade-off:** We own the queue code; serial processing means a long import delays exports by up to a minute. pg-boss is the upgrade path if job types or volume grow.
+
+## D-031 — Import previews expire after 24 h; raw row data cleared when an import ends
+- **What:** When a preview is ready, `preview_expires_at = now + 24 h` and an `import_expire` job is scheduled; it moves a still-pending import to `expired`. Confirm also checks the expiry itself (`410`). When an import reaches `completed`, `cancelled`, `failed` or `expired`, the uploaded file and `import_rows.raw` are set to NULL in the same transaction; row number, employee code, outcome and errors remain.
+- **Alternatives:** Manual cancel only (D-021); keep raw rows for later download; purge whole import records on a schedule.
+- **Why:** A forgotten preview would otherwise block all imports indefinitely and keep salary data at rest for no purpose. The check at confirm time means correctness never depends on job timing.
+- **Trade-off:** The rejected-rows CSV is only downloadable while the import is in preview/applying; rows rejected at apply time are listed (code + reasons) but HR fixes them from their own file.
+
+## D-032 — Export email links open an app page, which downloads via `fetch`
+- **What:** The email links to `APP_BASE_URL/exports/:id` (SPA route). The page checks the session (redirects to `/login?next=/exports/:id` if needed — relative paths only), then calls `GET /api/exports/:id/download` with `fetch` and saves the blob.
+- **Alternatives:** Direct API link (breaks); `SameSite=Lax` cookie; a one-time token in the link.
+- **Why:** With a `SameSite=Strict` cookie, a link clicked in Gmail/Outlook web is a cross-site navigation and the cookie is withheld, so a direct API link would always return `401`. A `fetch` from the app's own page is same-site and carries the cookie. Keeping Strict keeps CSRF protection simple; a token in the URL would be a bearer secret sitting in mailboxes.
+- **Trade-off:** One extra page in the SPA; download needs JavaScript (fine for this app).
+
+## D-033 — Relocation as an audited change type
+- **What:** Country changes only through a `relocation` change event, which must include the new base salary and allowances (in the new country's currency). Snapshots store `country_code` and `currency_code`, so earlier history and slips keep the old currency. Imports relocate a row only when its base salary also changed; otherwise the row is rejected.
+- **Alternatives:** Country immutable (re-hire as a new employee); allow country edits and convert salary automatically using the current rate.
+- **Why:** Relocations are real HR events and affect pay; re-hiring would break history. Automatic conversion would invent a salary — the new contract amount must come from HR.
+- **Trade-off:** In an import, a relocation whose new salary happens to equal the old number is rejected (very unlikely; do it through the UI).
+
+## D-034 — Exchange-rate changes are audited
+- **What:** Every rate update writes an append-only `exchange_rate_changes` row (old → new rate and as-of date, who, when) in the same transaction; shown on the rates page.
+- **Alternatives:** Only `updated_by`/`updated_at` on the rate row.
+- **Why:** Rates change every converted figure in the app; HR must be able to see who changed a rate and what it was before.
+- **Trade-off:** Still no point-in-time reporting with historical rates (out of scope) — the table is an audit trail, not used for conversion.
+
+## D-035 — Build in vertical slices
+- **What:** PLAN.md is ordered as slices (API task(s) followed by the UI that uses them), so the app is usable after each slice; job queue, import and email export come last.
+- **Alternatives:** All APIs first, all UI last.
+- **Why:** Each slice can be demoed and reviewed end-to-end, and UI feedback can change the API early instead of at the end.
+- **Trade-off:** Some UI is first built with a temporary behaviour (e.g. the PDF "too large" message before email export exists) and revisited in a later slice.

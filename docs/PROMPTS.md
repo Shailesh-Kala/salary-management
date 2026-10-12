@@ -214,3 +214,30 @@ Next
 ```
 
 **Response:** Wrote `docs/ARCHITECTURE.md` (mermaid architecture/state/sequence/ER diagrams, stack, tables with constraints and indexes, full API list and error shape, folder structure, security/performance/reliability decisions with trade-offs, testing strategy, `.env` keys) and `docs/PLAN.md` (38 TDD tasks in 8 milestones, acceptance tests T1–T10 mapped to tasks). Logged D-022–D-030.
+
+---
+
+## 9. Phase 2 — Design (architecture review)
+
+```text
+I went through ARCHITECTURE.md, few things:
+
+1. The email link won't work. The cookie is SameSite=Strict, so when HR clicks the link from Gmail or Outlook web the browser won't send the cookie and they'll get a 401. Make the link open a page in the React app (like /exports/:id) and download the file from there with fetch. Please add a test for this.
+
+2. Previews still don't expire. Please add the 24 hour expiry to the import flow and a cleanup job for it. Also clear import_rows.raw once an import is finished, cancelled or failed, we don't need to keep salary data there. Just keep row number, employee code, outcome and errors.
+
+3. Country can't be changed after an employee is created, but relocations should be
+supported. Let's make it an audited change type "relocation". Since currency follows
+country, the new base salary and allowances in the new currency have to be entered in
+the same change. Old history and past slips should keep the old currency. Imports can
+relocate too, but only if the row has the new salary as well.
+
+4. Can we reorder the plan so we build in slices? Like employees API then the employee list page, insights API then insights page. Email export and the job queue at the end. I want the app to be usable at every stage, not have all the UI at the end.
+
+Small things:
+- The CSRF note isn't quite right, forms can send multipart cross-site. SameSite=Strict is what protects us, so just say that.
+- Rate changes should be audited, add a small rate history table.
+- Turn on erasableSyntaxOnly in tsconfig since we're running TS directly on Node.
+```
+
+**Response:** Email links now open the SPA page `/exports/:id`, which downloads via same-site `fetch` (T11); previews expire after 24 h via `import_expire` job + confirm-time check, and file/raw rows are nulled when an import ends (T12, T13); added `relocation` change type requiring new salary, with country/currency in snapshots and import support (T14); fixed CSRF note; added `exchange_rate_changes`; tsconfig flags listed in ARCHITECTURE and Task 1. Re-ordered PLAN.md into 13 usable slices (41 tasks). Logged D-031–D-035.
