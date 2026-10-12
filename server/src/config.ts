@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+function isTimeZone(zone: string) {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -7,6 +16,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   COOKIE_SECURE: z.stringbool().default(true),
   CORS_ORIGIN: z.url().default('http://localhost:5173'),
+  APP_TIMEZONE: z.string().default('Asia/Kolkata').refine(isTimeZone, 'Unknown IANA time zone'),
 });
 
 export type Config = z.infer<typeof envSchema>;

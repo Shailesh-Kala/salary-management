@@ -2,7 +2,7 @@ import type { Pool } from 'pg';
 import { type Logger, pino } from 'pino';
 import { createApp } from '../src/app.ts';
 import type { Config } from '../src/config.ts';
-import type { Clock } from '../src/lib/clock.ts';
+import { type Clock, createClock } from '../src/lib/clock.ts';
 import { testPool } from './db.ts';
 
 export type TestClock = Clock & { advance(ms: number): void };
@@ -10,7 +10,7 @@ export type TestClock = Clock & { advance(ms: number): void };
 export function fixedClock(iso = '2026-10-12T09:00:00Z'): TestClock {
   let time = new Date(iso).getTime();
   return {
-    now: () => new Date(time),
+    ...createClock(testConfig.APP_TIMEZONE, () => new Date(time)),
     advance: (ms) => {
       time += ms;
     },
@@ -24,6 +24,7 @@ export const testConfig: Config = {
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
   COOKIE_SECURE: true,
   CORS_ORIGIN: 'http://localhost:5173',
+  APP_TIMEZONE: 'Asia/Kolkata',
 };
 
 export function buildTestApp({
