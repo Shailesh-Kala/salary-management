@@ -127,3 +127,25 @@ next
 ```
 
 **Response:** Wrote `docs/REQUIREMENTS.md` (goal, persona, 7 in-scope features incl. 6 concrete pay-insight questions, out-of-scope table with reasoning, data model fields, auth/privacy, NFR targets incl. high-load handling, assumptions, 7 open questions with defaults) and logged decisions D-003–D-008.
+
+---
+
+## 4. Phase 1 — Requirements (review feedback)
+
+```text
+Few things in the requirement which we can add:
+- Employees can resign and have notice period so we could add some status there and last working day something
+- While updating the salary of any employee there should some note or appreciation/feedback
+- Export feature should have select format options like CSV, PDF or Excel
+
+Here are open questions answers:
+Q1. Show gross pay only because a flat per-country estimate is risky as real deductions depend on tax brackets.
+Q2. Yes, Job title changes matter for pay based on promotion
+Q3. No, we will need to take consent
+Q4. Yes, Rupees should be default
+Q5. Yes, updated by employee code
+Q6. We don't need to deploy or host it anywhere so drop this
+Q7. Yes, but there should be reason/note required
+```
+
+**Response:** Revised REQUIREMENTS.md: added lifecycle (active / on_notice / exited, derived from dates) with resignation and last working day, required change type + note on every pay/title change, CSV/Excel/PDF export (PDF capped at 1,000 rows), gross-only slips, INR default, broader audit, new Q6/Q7 insights; dropped deployment from README/CLAUDE.md. Logged D-009–D-014 and marked superseded decisions; raised OQ8 (xlsx import) and OQ9 (PDF cap).
