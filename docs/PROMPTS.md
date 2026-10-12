@@ -105,3 +105,15 @@ Start with Phase 0 now.
 </details>
 
 **Response:** Created public repo `salary-management`, added `.gitignore`, README skeleton, `CLAUDE.md` with the working rules, and skeleton docs (PROMPTS, REQUIREMENTS, ARCHITECTURE, PLAN, DECISIONS) — one commit per file, pushed.
+
+---
+
+## 2. Phase 0 — Repo setup (follow-up)
+
+```text
+The reason for single repo is we will be sending the code for assessment review so we don't need seprate repo.
+1. Node version: please update the node version to 24.21.0
+2. Yes already have database which I will config on .env file by myself
+```
+
+**Response:** Updated D-001 rationale (single repo for assessment review), installed Node 24.21.0 via nvm as default, pinned it in `.nvmrc`, logged D-002. Noted DB connection will be supplied by the user via `.env`.
