@@ -438,3 +438,13 @@ next
 ```
 
 **Response:** TDD: failing tests for `mulberry32` (same seed → same sequence), the generator (deterministic first/last rows + checksum, seed changes output, sequential codes, unique emails, every row accepted unchanged by the create schema, date order, status mix, all countries/departments) and `seedDatabase` (counts of employees/hire/exit changes, snapshot currency matches country, refuses without reset, keeps an existing admin); then PRNG, generator, batched `unnest` seeding in one transaction and `npm run seed [-- --reset]`. Seeded the app DB: 10,000 employees + 10,675 history entries in 1.72 s (empty) / ~1.3 s (reset). Checked search: trigram index 5 ms vs planner's 19 ms seq scan at 10k (both fine). Refactored seed snapshot to named fields. Logged D-045. 168 tests pass.
+
+---
+
+## 28. Phase 3 — Task 13: Employees list page
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for `GET /api/employees/filter-options` and 8 RTL tests (default query, country/department/title/status filters from page 1 with URL state, debounced search sending one request, header sort asc/desc on converted salary, next page, currency switch with header label, 401 → login with `next`). Then the filter-options query, a shared QueryClient (401 → login, no 4xx retries), `formatMoney` (en-IN grouping), and the list page with MUI X DataGrid in server mode. Smoke-tested on the seeded 10k DB: list queries 13–59 ms. Logged D-046. 177 tests pass. Slice C done.

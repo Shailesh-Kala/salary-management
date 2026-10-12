@@ -90,20 +90,21 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - values are valid against the employee schema
       - an integration run with `n = 200` inserts 200 rows + 200 changes
     - Measured time goes in the README.
-13. [ ] **Employees list page:** DataGrid in server mode (paging and sorting), filters, debounced search, currency selector, status chips.
+13. [x] **Employees list page:** DataGrid in server mode (paging and sorting), filters, debounced search, currency selector, status chips.
     - RTL test: changing a filter, the sort or the page sends the matching query parameters.
+    - Also done here (the page needs them): `GET /api/employees/filter-options` (moved from Task 14), and a 401 on any query sends the user to login with `?next=`.
+    - Measured on the seeded 10k database: list queries 13–59 ms.
 
     ✅ *Usable: HR can browse, search and filter all 10,000 employees in any currency.*
 
 ## Slice D: Employee detail, create and edit
-14. [ ] **Get + edit profile API with optimistic locking**, `GET /api/employees/filter-options`.
+14. [ ] **Get + edit profile API with optimistic locking.**
     - Tests:
       - GET returns `version` and `status`
       - PATCH with the current version → 200 and version + 1
       - a stale version → 409 `VERSION_CONFLICT`
       - PATCH can't change country, salary, title or department (400)
       - name and email edits create no change entry
-      - filter options are distinct and sorted
 15. [ ] **Detail page + create and edit pages:** profile, current pay, create form, profile edit.
     - RTL tests: create posts the form and navigates to the new employee; a 409 shows the "updated by someone else — reload" message.
 

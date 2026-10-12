@@ -286,3 +286,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Fixed calendar dates (byte-identical forever, but "on notice" employees become "exited" as time passes); always truncate.
 - **Why:** Demo data should look current; an accidental `npm run seed` against a database with real edits must not wipe it.
 - **Trade-off:** Output is identical only for the same day; tests pin `today`, so they stay deterministic.
+
+## D-046 — List state in the URL; any 401 sends the user to login
+- **What:** The employee list keeps page, page size, sort, filters, search and currency in the URL query string. A shared `createQueryClient()` treats a 401 from any query as "session ended" and clears the cached user, so `RequireAuth` redirects to `/login?next=<current URL>`; 4xx errors are not retried.
+- **Alternatives:** List state in React state only; a 401 check in every page.
+- **Why:** URLs survive reloads, can be bookmarked or shared between HR colleagues, and make the post-login return land on exactly the same filtered view. One central 401 rule covers every future page.
+- **Trade-off:** URL parameters must be validated on the server anyway (they are), and the page has to tolerate hand-edited URLs (invalid values get a 400 shown in an alert).

@@ -418,7 +418,7 @@ salary-management/
 | **Exports:** CSV and Excel stream rows in keyset-paged chunks of 1,000 from the DB straight into the HTTP response. PDF is built from at most 1,000 rows directly, or in the worker for larger exports. | Memory stays flat at about 1,000 rows. |
 | **Import:** parse the whole file (≤ 5 MB) once in the validate job. Bulk-load existing employees by code and email in one query, so validation doesn't query the DB per row. Apply is one transaction per row (D-019). | Apply is slower than batched writes; the target is < 60 s for 10k rows, in the background. |
 | **Seed:** `unnest` multi-row inserts, 1,000 rows per statement, in one transaction. | |
-| **Frontend:** DataGrid in server mode for paging, sorting and filtering; search debounced by 300 ms; TanStack Query caching; polling only while a job is active. | |
+| **Frontend:** DataGrid in server mode for paging and sorting (filters are form controls above it); list state kept in the URL; search debounced by 300 ms; TanStack Query caching with `keepPreviousData` so the grid doesn't flash between pages; polling only while a job is active. Measured list API on 10k seeded rows: 13–59 ms. | Single JS bundle ~>500 kB (MUI + DataGrid); fine for an internal desktop tool, route-level code splitting is the upgrade path. |
 
 ## 8. Reliability decisions
 | Decision | Trade-off |
