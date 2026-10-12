@@ -98,7 +98,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR can browse, search and filter all 10,000 employees in any currency.*
 
 ## Slice D: Employee detail, create and edit
-14. [ ] **Get + edit profile API with optimistic locking.**
+14. [x] **Get + edit profile API with optimistic locking.**
     - Tests:
       - GET returns `version` and `status`
       - PATCH with the current version → 200 and version + 1

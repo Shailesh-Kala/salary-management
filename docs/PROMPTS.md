@@ -448,3 +448,13 @@ next
 ```
 
 **Response:** TDD: failing tests for `GET /api/employees/filter-options` and 8 RTL tests (default query, country/department/title/status filters from page 1 with URL state, debounced search sending one request, header sort asc/desc on converted salary, next page, currency switch with header label, 401 → login with `next`). Then the filter-options query, a shared QueryClient (401 → login, no 4xx retries), `formatMoney` (en-IN grouping), and the list page with MUI X DataGrid in server mode. Smoke-tested on the seeded 10k DB: list queries 13–59 ms. Logged D-046. 177 tests pass. Slice C done.
+
+---
+
+## 29. Phase 3 — Task 14: Get + edit profile API
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests (detail with version/status/currency/country name, 404 for unknown and malformed ids, PATCH name/email bumps version and writes no history, stale version → 409 keeping newer data, unknown → 404, six audited fields refused with 400, duplicate email → 409, empty update and missing version → 400); then `updateProfileSchema` (strict: name/email only), `findById`, `updateProfile` (`UPDATE … WHERE id AND version` in a CTE joined to countries), service conflict-vs-not-found branching, and routes. 192 tests pass.
