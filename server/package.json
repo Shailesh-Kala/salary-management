@@ -7,7 +7,9 @@
     "dev": "node --env-file-if-exists=../.env --watch src/main.ts",
     "migrate": "node --env-file-if-exists=../.env scripts/migrate.ts",
     "user:create": "node --env-file-if-exists=../.env scripts/user.ts create",
+    "user:reset-password": "node --env-file-if-exists=../.env scripts/user.ts reset-password",
     "user:disable": "node --env-file-if-exists=../.env scripts/user.ts disable",
+    "user:enable": "node --env-file-if-exists=../.env scripts/user.ts enable",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },

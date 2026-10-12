@@ -17,6 +17,8 @@ export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 export function createUsersRepository(db: Pool | PoolClient) {
   const one = async (sql: string, params: unknown[]) =>
     (await db.query<HrUser>(sql, params)).rows[0] ?? null;
+  const updated = async (sql: string, params: unknown[]) =>
+    (await db.query(sql, params)).rowCount === 1;
 
   return {
     findByEmail: (email: string) =>
@@ -35,14 +37,22 @@ export function createUsersRepository(db: Pool | PoolClient) {
       await db.query('UPDATE hr_users SET token_version = token_version + 1 WHERE id = $1', [id]);
     },
 
-    disableByEmail: async (email: string) => {
-      const { rowCount } = await db.query(
+    disableByEmail: (email: string) =>
+      updated(
         `UPDATE hr_users SET disabled_at = coalesce(disabled_at, now()), token_version = token_version + 1
           WHERE email = $1`,
         [email],
-      );
-      return rowCount === 1;
-    },
+      ),
+
+    enableByEmail: (email: string) =>
+      updated('UPDATE hr_users SET disabled_at = NULL WHERE email = $1', [email]),
+
+    /** Replaces the password and ends every existing session. */
+    setPasswordByEmail: (email: string, passwordHash: string) =>
+      updated(
+        `UPDATE hr_users SET password_hash = $2, token_version = token_version + 1 WHERE email = $1`,
+        [email, passwordHash],
+      ),
   };
 }
 

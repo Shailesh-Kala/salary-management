@@ -17,3 +17,15 @@ export async function createUser(
 export function disableUser(db: Pool, email: string) {
   return createUsersRepository(db).disableByEmail(normalizeEmail(email));
 }
+
+export function enableUser(db: Pool, email: string) {
+  return createUsersRepository(db).enableByEmail(normalizeEmail(email));
+}
+
+/** Sets a new password and ends existing sessions; the user keeps the same id and history. */
+export async function resetPassword(db: Pool, email: string, password: string) {
+  return createUsersRepository(db).setPasswordByEmail(
+    normalizeEmail(email),
+    await hashPassword(password),
+  );
+}
