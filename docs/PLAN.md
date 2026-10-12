@@ -128,7 +128,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - the DB trigger blocks UPDATE and DELETE on `employee_changes`
       - a relocation writes one change with the old → new country and salary (**T14**, API part)
     - Also done here: "an exited employee only accepts `correction` changes" (it is part of change-event validation; moved from Task 18). The rules live in a pure `planChange()` unit-tested without a DB.
-17. [ ] **Change dialog + history timeline UI:** change type, effective date, note and fields. Choosing *relocation* shows the country field and makes the salary fields required, labelled in the new currency.
+17. [x] **Change dialog + history timeline UI:** change type, effective date, note and fields. Choosing *relocation* shows the country field and makes the salary fields required, labelled in the new currency.
     - RTL tests: submit is disabled until the note is valid; relocation without a salary can't be submitted; the request includes `version`.
 
     ✅ *Usable: HR records raises, promotions and relocations with notes, and sees the history.*

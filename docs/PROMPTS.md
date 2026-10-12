@@ -478,3 +478,13 @@ next
 ```
 
 **Response:** TDD: failing unit tests for a pure `planChange()` (only changed fields recorded, equal amounts in different formats unchanged, no-op rejected, promotion as one event and snapshot, effective date not future and not before the latest change, relocation rules and new-currency snapshot, hire-date correction bounds, exited employees correction-only) and the change schema; integration tests for apply + record, stale version 409, relocation keeping the old currency in history (T14 API), 400 field errors, 404s, atomic rollback, and history newest-first with author and snapshot. Then `planChange`, `changeEventSchema`, row lock (`FOR UPDATE`), whitelisted dynamic SET, date bounds, history query, and routes. 232 tests pass.
+
+---
+
+## 32. Phase 3 — Task 17: Change dialog and history timeline
+
+```text
+next
+```
+
+**Response:** TDD: failing RTL tests (history newest first with type, date, note, old → new lines in the right currency, and author; Save disabled until the note has 5+ chars; promotion posts the loaded version without `countryCode`/`hireDate` and refreshes history; relocation clears pay, asks for a new country, relabels amounts in its currency and stays disabled until both amounts are entered; server field error shown in the dialog). Then `HistoryList`, `ChangeDialog` (pre-filled current values, relocation/correction-only fields, exited → correction only) and the detail page's History section. Refactored the shared version-conflict alert. 237 tests pass. Slice E done.
