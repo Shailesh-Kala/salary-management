@@ -6,6 +6,7 @@ const envSchema = z.object({
   DATABASE_URL: z.url(),
   JWT_SECRET: z.string().min(32),
   COOKIE_SECURE: z.stringbool().default(true),
+  CORS_ORIGIN: z.url().default('http://localhost:5173'),
 });
 
 export type Config = z.infer<typeof envSchema>;

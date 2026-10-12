@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import type { Pool } from 'pg';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -9,6 +11,7 @@ import type { Clock } from './lib/clock.ts';
 import { AppError } from './lib/errors.ts';
 import { requireAuth } from './middleware/auth.ts';
 import { errorHandler } from './middleware/error-handler.ts';
+import { apiRateLimit } from './middleware/rate-limit.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
 import { createAuthService } from './modules/auth/auth.service.ts';
 import { createSessionTokens } from './modules/auth/session-tokens.ts';
@@ -32,8 +35,16 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
         res.setHeader('X-Request-Id', id);
         return id;
       },
+      // Only what's needed to trace a request: no headers (cookies), query strings or bodies.
+      serializers: {
+        req: (req) => ({ id: req.id, method: req.method, path: String(req.url).split('?')[0] }),
+        res: (res) => ({ statusCode: res.statusCode }),
+      },
     }),
   );
+  // HSTS only makes sense when served over HTTPS, which is when the cookie is Secure.
+  app.use(helmet({ strictTransportSecurity: config.COOKIE_SECURE }));
+  app.use(cors({ origin: [config.CORS_ORIGIN], credentials: true }));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
@@ -57,6 +68,7 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   const api = express.Router();
   api.use(publicRoutes);
   api.use(requireAuth(auth));
+  api.use(apiRateLimit());
   api.use(protectedRoutes);
   app.use('/api', api);
 

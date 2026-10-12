@@ -1,6 +1,7 @@
 import { type CookieOptions, Router } from 'express';
 import { z } from 'zod';
 import type { Config } from '../../config.ts';
+import { loginRateLimits } from '../../middleware/rate-limit.ts';
 import type { AuthService } from './auth.service.ts';
 import { SESSION_TTL_SECONDS } from './session-tokens.ts';
 
@@ -20,7 +21,7 @@ export function authRoutes(auth: AuthService, config: Pick<Config, 'COOKIE_SECUR
   };
 
   const publicRoutes = Router();
-  publicRoutes.post('/auth/login', async (req, res) => {
+  publicRoutes.post('/auth/login', ...loginRateLimits(), async (req, res) => {
     const { email, password } = loginSchema.parse(req.body);
     const { user, token } = await auth.login(email, password, req.log);
     res.cookie(SESSION_COOKIE, token, { ...cookieOptions, maxAge: SESSION_TTL_SECONDS * 1000 });
