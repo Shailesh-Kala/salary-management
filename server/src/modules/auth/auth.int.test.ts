@@ -47,6 +47,17 @@ describe('POST /api/auth/login', () => {
     expect(cookie).toContain('Max-Age=28800');
   });
 
+  it('omits the Secure flag when COOKIE_SECURE is false (plain-http localhost, e.g. Safari)', async () => {
+    const insecureApp = buildTestApp({ config: { COOKIE_SECURE: false } });
+
+    const res = await request(insecureApp)
+      .post('/api/auth/login')
+      .send({ email: EMAIL, password: PASSWORD });
+
+    expect(res.status).toBe(200);
+    expect(String(res.headers['set-cookie']?.[0])).not.toContain('Secure');
+  });
+
   it.each([
     ['a wrong password', EMAIL, 'wrong password'],
     ['an unknown email', 'nobody@acme.local', PASSWORD],

@@ -28,6 +28,12 @@ export const testConfig: Config = {
 export function buildTestApp({
   db = testPool,
   clock = fixedClock(),
-}: { db?: Pool; clock?: Clock } = {}) {
-  return createApp({ logger: pino({ level: 'silent' }), db, clock, config: testConfig });
+  config = {},
+}: { db?: Pool; clock?: Clock; config?: Partial<Config> } = {}) {
+  return createApp({
+    logger: pino({ level: 'silent' }),
+    db,
+    clock,
+    config: { ...testConfig, ...config },
+  });
 }
