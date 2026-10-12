@@ -269,7 +269,14 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Several HR users behind one office NAT share the 20/min budget — ample for normal logins.
 
 ## D-043 — `user:create` generates the password and prints it once
+> **Amended by D-044** — `user:reset-password` and `user:enable` added; disable + re-create is no longer the rotation path.
 - **What:** `npm run user:create -- <email> "<name>"` creates the account with a random 144-bit password (`randomBytes(18)`, base64url) and prints it once. `user:disable` sets `disabled_at` and ends sessions.
 - **Alternatives:** Password as a CLI argument (lands in shell history); interactive hidden prompt (extra terminal-handling code); env variable.
 - **Why:** Nothing sensitive in shell history or process lists, no prompt code, and the password is stronger than a typical chosen one.
 - **Trade-off:** There is no change-password feature (password reset is out of scope), so HR keeps the generated password; to rotate, disable the account and create a new one.
+
+## D-044 — `user:reset-password` and `user:enable` instead of disable + re-create
+- **What:** `user:reset-password -- <email>` sets a new generated password (printed once) and increments `token_version`; `user:enable -- <email>` clears `disabled_at` (no version bump, so sessions from before the disable stay ended).
+- **Alternatives:** Disable the account and create a new one (D-043's workaround); self-service password change in the UI.
+- **Why:** Re-creating fails because the disabled account still owns the email, and would split one person's audit history (`changed_by`, exports) across two user IDs. A UI password change is out of scope.
+- **Trade-off:** Password changes still need someone with server/DB access to run the CLI.

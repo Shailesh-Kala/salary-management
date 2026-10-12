@@ -364,3 +364,17 @@ next
 ```
 
 **Response:** TDD: failing integration tests (cookie flags and 8 h Max-Age, identical generic 401 for wrong password/unknown email, 400 with field details, `/me`, every `/api` route protected, tampered token, expiry with injected clock, logout + replayed token, disable ends sessions and blocks login — T16) plus malformed-JSON 400, 413 body limit, zod → 400 mapping and new config keys; then `jose` HS256 tokens with `tv`, auth service (dummy hash for unknown emails, per-request user re-check), `requireAuth`, `express.json` + `cookie-parser`, `user:create`/`user:disable` CLI. 46 tests pass; CLI verified against the test DB. Logged D-043.
+
+---
+
+## 21. Phase 3 — Task 6 follow-up (review notes)
+
+```text
+Before "next":
+- Yes, please add user:reset-password. Disable + create doesn't work because the email is still taken by the disabled account, and it would split the person's history across two user IDs. Generate a new password, print it once, and bump token_version. Please add user:enable too.
+- Is the cookie's Secure flag controlled by COOKIE_SECURE? Safari may not store Secure cookies on http://localhost, so login would look fine but every request after it would fail.
+- A disabled user's login should give the same generic 401, with the same timing as a wrong password.
+- Make the log parameter of verifyPassword required now that login passes it.
+```
+
+**Response:** Confirmed `secure: config.COOKIE_SECURE` (default true; user's `.env` is false) and added a test that `false` omits `Secure`. Confirmed disabled users already go through the same single hash check; added a unit test proving unknown / wrong / disabled each call `verifyPassword` once and throw the identical error (found and fixed a test bug: a `beforeEach` that returned the mock was run by Vitest as a cleanup hook). TDD: `resetPassword` (new password, `token_version` bump, same user ID) and `enableUser`, plus `user:reset-password` / `user:enable` CLI; refactor made `log` required. 54 tests pass. Logged D-044.

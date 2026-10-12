@@ -36,6 +36,7 @@ Replace ACME's Excel-based salary tracking with a web application in which the H
 - Email and password login for HR users. Accounts are created by a seed script or CLI; there is no self-signup.
 - Every HR user has the same permissions (a single role).
 - Session ends on logout, expiry, or when the account is **disabled**.
+- **Account commands (CLI):** `user:create`, `user:reset-password` (new generated password, ends sessions), `user:disable`, `user:enable`. The same person keeps one account and one history.
 - **Revocation:** an HR user can be disabled with a CLI command (`npm run user:disable -- <email>`). Their session stops working on the **next request**, not after 8 hours. Logout also revokes the session on the server, not just in the browser.
 - Details are in §7.
 

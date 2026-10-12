@@ -354,7 +354,7 @@ salary-management/
 │  ├─ migrations/          # 0001_init.sql, 0002_employees.sql, … (node-pg-migrate, SQL)
 │  ├─ scripts/
 │  │  ├─ seed.ts           # deterministic 10k seed, prints timing
-│  │  └─ user.ts           # npm run user:create -- <email> "<name>" (prints a generated password once) | user:disable -- <email>
+│  │  └─ user.ts           # user:create -- <email> "<name>" | user:reset-password | user:disable | user:enable -- <email>
 │  ├─ test/                # global-setup (migrate test DB), db reset, factories, fake mailer
 │  └─ src/
 │     ├─ main.ts           # wires real deps, starts HTTP + worker, graceful shutdown
