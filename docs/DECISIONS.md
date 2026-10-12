@@ -249,3 +249,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** UTC "today" (HR in India would see yesterday's date until 05:30); server local time (varies by machine); a date library.
 - **Why:** HR works in IST and INR is the default currency; converting `DATE` to JS `Date` is the classic off-by-one-day bug. Running tests in a different zone makes any hidden local-time dependency fail loudly.
 - **Trade-off:** Employees in other countries are judged by the IST calendar day (e.g. a US last working day ends at IST midnight) — acceptable for an HR-side tool.
+
+## D-040 — TypeScript 6.0 (not 7.0)
+- **What:** Pin `typescript@6.0.3`; all tool versions pinned exactly in `package.json`.
+- **Alternatives:** TypeScript 7.0 (latest, native Go compiler).
+- **Why:** `typescript-eslint@8.71` supports TypeScript `<6.1` only; 6.0 has every flag we need (`erasableSyntaxOnly`, `verbatimModuleSyntax`).
+- **Trade-off:** Misses TS 7's faster type-checking; upgrade when typescript-eslint supports it.

@@ -261,3 +261,13 @@ I went through REQUIREMENTS, DECISIONS, ARCHITECTURE and PLAN. I found a few thi
 ```
 
 **Response:** Added an import row-rules table (new employee → `hire` on hire date; name/email → updated without history; hire date and exited-employee changes only via `correction`) and hire-date correction in the UI (D-036); per-row error isolation with an infrastructure-error classifier (D-037); revocable sessions via `token_version` + `disabled_at` checked per request and a user CLI (D-038); `APP_TIMEZONE=Asia/Kolkata` for "today", DATE as strings, tests under `TZ=America/Los_Angeles` (D-039). New acceptance tests T15–T18 placed in PLAN tasks 4, 6, 9, 34, 35.
+
+---
+
+## 11. Phase 3 — Task 1: Workspace scaffold
+
+```text
+next
+```
+
+**Response:** Scaffolded the npm workspace (`server`), TypeScript 6.0 with `erasableSyntaxOnly`/`verbatimModuleSyntax`/`noEmit`, ESLint (typescript-eslint) + Prettier, Vitest, exact-pinned tools, `engines: node 24.21.0`, `.env.example`. Lint, typecheck, test and `node server/src/main.ts` all pass. Logged D-040 (TS 6.0 pin).
