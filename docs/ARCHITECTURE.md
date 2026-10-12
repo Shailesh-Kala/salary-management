@@ -71,14 +71,29 @@ stateDiagram-v2
   - `confirm` also checks `now ≥ preview_expires_at` itself and returns `410`, so expiry never depends on when the job happens to run.
 - **End-of-import clearing (D-031):** the transaction that moves an import to `completed`, `cancelled`, `failed` or `expired` also sets `imports.file = NULL` and `import_rows.raw = NULL`.
 - **Apply** loops over rows that are valid in the preview and have `applied_at IS NULL`, in `row_number` order. **Each row runs in one transaction:**
-  1. lock or look up the employee
-  2. re-validate the row
+  1. lock (`SELECT … FOR UPDATE`) or look up the employee
+  2. re-validate the row with the **row rules** (REQUIREMENTS §4.8), the same pure function the preview uses
   3. upsert the employee
-  4. insert an `employee_changes` row with `import_id` and `import_row_number`
+  4. insert the `employee_changes` row if needed (`hire` for new employees, effective on their hire date; the import's type and date otherwise; `relocation` for country changes), with `import_id` and `import_row_number`
   5. set `import_rows.outcome` and `applied_at`
   6. commit
 
   On retry, rows that already have `applied_at` are skipped. As a second guard, a unique index on `employee_changes (import_id, import_row_number)` makes a duplicate history row impossible (D-020).
+- **Error isolation per row (D-037):** the row's transaction is wrapped in `try/catch`.
+  ```ts
+  try { await applyRowInTx(row) }
+  catch (err) {
+    if (isInfrastructureError(err)) throw err          // job fails → retried, finished rows skipped
+    await markRowRejected(row, 'unexpected error — row not imported', ref)  // own tx
+    log.error({ jobId, rowNumber, code: err.code })   // no row data
+  }
+  ```
+  `isInfrastructureError` is a pure, unit-tested classifier. It matches:
+  - SQLSTATE classes `08` (connection), `53` (insufficient resources) and `57P` (shutdown / cancelled)
+  - `40001` (serialisation failure) and `40P01` (deadlock)
+  - Node socket errors (`ECONNRESET`, `ECONNREFUSED`, `ETIMEDOUT`, `EPIPE`) and the pg "connection terminated" error
+
+  Everything else is a row problem. The validate step uses the same wrapper.
 
 **Large PDF export by email** (D-016, D-018, D-020)
 ```mermaid
@@ -151,7 +166,7 @@ erDiagram
 ```
 
 ### 3.1 Tables
-**`hr_users`**: `id`, `email` (unique, stored lower-case), `name`, `password_hash` (`scrypt$N$r$p$salt$hash`), `created_at`.
+**`hr_users`**: `id`, `email` (unique, stored lower-case), `name`, `password_hash` (`scrypt$N$r$p$salt$hash`), `token_version int NOT NULL DEFAULT 1`, `disabled_at timestamptz NULL`, `created_at`.
 
 **`countries`**: `code char(2) PK`, `name`, `currency_code char(3) FK → exchange_rates`.
 
@@ -286,7 +301,7 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 | `GET /health` | Liveness and DB check | `200 {status:"ok", db:"ok"}` or `503` |
 | **Auth** | | |
 | `POST /api/auth/login` | Email + password → sets cookie | Rate limited (5/min per IP+email); generic failure message |
-| `POST /api/auth/logout` | Clears cookie | |
+| `POST /api/auth/logout` | Increments `token_version` (ends all of this user's sessions) and clears the cookie | |
 | `GET /api/auth/me` | Current user | |
 | **Reference data** | | |
 | `GET /api/countries` | Countries with currency | |
@@ -299,11 +314,11 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 | `POST /api/employees` | Create | Writes the employee and a `hire` change in one transaction |
 | `GET /api/employees/:id` | Detail | Includes `version` and the derived `status` |
 | `PATCH /api/employees/:id` | Edit non-audited fields (name, email) | `{version, …}`; `409 VERSION_CONFLICT` on a stale version |
-| `POST /api/employees/:id/changes` | Audited change event | `{version, changeType, effectiveDate, note, baseSalary?, allowances?, jobTitle?, department?, countryCode?}`; at least one field must actually change. `countryCode` is accepted **only** with `changeType = relocation`, and then `baseSalary` and `allowances` are required (D-033) |
+| `POST /api/employees/:id/changes` | Audited change event | `{version, changeType, effectiveDate, note, baseSalary?, allowances?, jobTitle?, department?, countryCode?}`; at least one field must actually change. `countryCode` is accepted **only** with `changeType = relocation`, and then `baseSalary` and `allowances` are required (D-033). `hireDate` is accepted **only** with `changeType = correction`, and must be ≤ the first non-hire change's effective date and ≤ `notice_date`. For exited employees, only `correction` is accepted (D-036) |
 | `GET /api/employees/:id/changes` | History timeline | Newest first |
 | `POST /api/employees/:id/exit` | Record resignation or termination | `{version, exitType, noticeDate, lastWorkingDay, note}` |
 | `POST /api/employees/:id/exit/withdraw` | Withdraw while on notice | `{version, note}` |
-| `GET /api/employees/:id/slips/:month` | Monthly slip | `month` = `YYYY-MM` and ≤ the current month; `?format=pdf` returns a PDF |
+| `GET /api/employees/:id/slips/:month` | Monthly slip | `month` = `YYYY-MM` and ≤ the current month (in `APP_TIMEZONE`). Uses the latest snapshot with `effective_date ≤ month end`; if a corrected (earlier) hire date makes the month precede every snapshot, it falls back to the earliest snapshot. `?format=pdf` returns a PDF |
 | **Insights** (all take `country`, `department`, `currency`) | | |
 | `GET /api/insights/summary` | Q1 | |
 | `GET /api/insights/by-country` | Q2 | |
@@ -337,7 +352,8 @@ salary-management/
 │  ├─ package.json  tsconfig.json  vitest.config.ts
 │  ├─ migrations/          # 0001_init.sql, 0002_employees.sql, … (node-pg-migrate, SQL)
 │  ├─ scripts/
-│  │  └─ seed.ts           # deterministic 10k seed, prints timing
+│  │  ├─ seed.ts           # deterministic 10k seed, prints timing
+│  │  └─ user.ts           # npm run user:create | user:disable -- <email>
 │  ├─ test/                # global-setup (migrate test DB), db reset, factories, fake mailer
 │  └─ src/
 │     ├─ main.ts           # wires real deps, starts HTTP + worker, graceful shutdown
@@ -371,7 +387,8 @@ salary-management/
 | Decision | Trade-off |
 |---|---|
 | **Passwords:** `crypto.scrypt` (N=2¹⁵, r=8, p=1) with a random 16-byte salt; compared with `timingSafeEqual`. On an unknown email, a dummy hash is still computed so response timing doesn't reveal whether the account exists (D-025). | Uses the built-in KDF rather than argon2id. scrypt is memory-hard and widely accepted, and avoids native modules. |
-| **Session:** HS256 JWT (`jose`) with `sub` and `exp` = 8 h, in a cookie set `httpOnly; SameSite=Strict; Path=/`. `Secure` is controlled by `COOKIE_SECURE`: true by default, false in `.env.example` for http://localhost. | A stateless token can't be revoked before expiry. Logout clears the cookie. With few users and 8 h expiry this is acceptable; a denylist is the upgrade path. |
+| **Session:** HS256 JWT (`jose`) with `sub`, `tv` (token version) and `exp` = 8 h, in a cookie set `httpOnly; SameSite=Strict; Path=/`. `Secure` is controlled by `COOKIE_SECURE`: true by default, false in `.env.example` for http://localhost. | |
+| **Revocation (D-038):** `requireAuth` verifies the JWT, then loads the user by primary key on **every request**. It rejects with `401` if `disabled_at IS NOT NULL` or `token_version ≠ tv`. Logout and `user:disable` increment `token_version`; disable also sets `disabled_at`. Login refuses disabled users with the generic message. | One indexed lookup per request (sub-millisecond). Logout ends the user's sessions on every device. |
 | **CSRF:** the `SameSite=Strict` session cookie is what protects us. A cross-site form or request, including a multipart form post, is sent without the cookie, so it is unauthenticated. | No CSRF token. Relies on browsers enforcing SameSite, which all current browsers do. Side effect: links from outside the app (email) must land on an SPA page, not an API URL (D-032). |
 | **Authorisation:** `requireAuth` is applied router-wide under `/api`; only login is exempt. Export downloads also check `requested_by = user.id`. | A single role (D-008), so there's no per-record ACL apart from exports. |
 | **Input validation:** zod schemas on every body and query; sort fields come from a whitelist mapped to SQL column expressions; unknown fields are rejected. | |
@@ -418,16 +435,23 @@ salary-management/
 | **Errors:** domain errors (`AppError(code, status, message, details)`) are thrown by services and mapped by one error handler. zod errors become `VALIDATION_ERROR` with field paths; PG unique violations become `DUPLICATE` with the field. Unknown errors are logged with the stack and returned as `INTERNAL` without it. | |
 | **CI:** GitHub Actions on every push: `npm ci` → lint → typecheck → server tests (postgres:16 service) → web tests. | |
 
-### 8.1 Determinism
-- `Clock` (`{ now(): Date; today(): string }`) is injected everywhere time matters: status, effective-date rules, slip month limit, expiry, job scheduling.
+### 8.1 Determinism, dates and time zone (D-039)
+- **Clock:** `Clock` (`{ now(): Date; today(): string }`) is injected everywhere time matters: status, effective-date rules, slip month limit, expiry, job scheduling.
+  - `today()` returns `YYYY-MM-DD` in `APP_TIMEZONE` (default `Asia/Kolkata`), via `Intl.DateTimeFormat('en-CA', { timeZone })`. No date library is needed.
+- **Calendar dates are strings:** `types.setTypeParser(1082 /* DATE */, v => v)` in `db/pool.ts`, so `DATE` columns come back as `YYYY-MM-DD` strings and are written back the same way.
+  - Date comparisons are done on these strings (which sort correctly) or in SQL. The code never calls `new Date('YYYY-MM-DD')`, which parses as UTC midnight and shifts the day in other zones.
+  - The web app does the same: date inputs and display use the strings as they are.
+- **Other driver types:** `NUMERIC` stays a string (exact money). `count(*)` is cast `::int` in SQL.
+- **Instants:** the DB session runs in UTC (`SET TIME ZONE 'UTC'` on connect). `timestamptz` values are instants; expiry and job times compare instants, so "24 h" is exact.
+- **Tests run with `TZ=America/Los_Angeles`** (set in the Vitest config), so any accidental use of local time shows up as a failing test rather than a bug that only appears in production.
 - The seed's PRNG takes a fixed seed. No test reads the real time or `Math.random()`.
 
 ### 8.2 Testing strategy
 | Level | What | How |
 |---|---|---|
-| **Unit** (no DB, no HTTP) | Password hash/verify, money and rounding, status derivation, change diffing and validation (effective-date rules, note), exit and withdraw rules, slip calculation, CSV row validation, upload checks, formula escaping, job retry/backoff decisions | Services get fake in-memory repositories, a fixed `Clock` and a fake mailer |
+| **Unit** (no DB, no HTTP) | Password hash/verify, money and rounding, `today()` in `APP_TIMEZONE`, `isInfrastructureError`, import row rules, status derivation, change diffing and validation (effective-date rules, note), exit and withdraw rules, slip calculation, CSV row validation, upload checks, formula escaping, job retry/backoff decisions | Services get fake in-memory repositories, a fixed `Clock` and a fake mailer |
 | **Integration** | Routes + repositories + SQL: auth, list/filter/sort/search, optimistic locking, history immutability, conversion and insight queries (with exact expected numbers from small fixtures), the import pipeline, exports, download rules, the queue | Supertest against `createApp(deps)` on a **real PostgreSQL test DB** (`TEST_DATABASE_URL`), migrated once in global setup and truncated between tests. The worker is driven with `worker.runOnce()`, with no timers. |
-| **Acceptance (required)** | T1–T14 from the requirements (§11) | Integration tests (T11 is also a web test) named after the requirement ID |
+| **Acceptance (required)** | T1–T18 from the requirements (§11) | Integration tests (T11 is also a web test) named after the requirement ID |
 | **Web** | A few behaviour tests on key screens (login and `next` redirect, import preview actions, export too-large flow, export download page) | React Testing Library with `fetch` mocked |
 
 ## 9. Configuration (`.env.example`)
@@ -437,6 +461,7 @@ PORT=3000
 DATABASE_URL=postgres://user:pass@localhost:5432/salary_management
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/salary_management_test
 JWT_SECRET=change-me-to-a-random-32+-char-string
+APP_TIMEZONE=Asia/Kolkata                   # defines "today" for all date rules
 COOKIE_SECURE=false
 CORS_ORIGIN=http://localhost:5173
 APP_BASE_URL=http://localhost:5173          # SPA origin; email links point to $APP_BASE_URL/exports/:id
