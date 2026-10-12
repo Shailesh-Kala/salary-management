@@ -90,3 +90,21 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Stored status column updated by a scheduled job; HR manually marks "exited".
 - **Why:** No cron job, no status that can drift from the dates, nothing for HR to forget.
 - **Trade-off:** Status depends on "today", so the clock must be injected for deterministic tests; filtering by status is an expression over dates (fine at 10k rows, indexable on `last_working_day`).
+
+## D-015 — CSV import as a background job with partial accept and a rejected-rows report
+- **What:** Template CSV with example rows (`EXAMPLE-*`, auto-rejected if left in). Upload is checked synchronously (type, ≤ 5 MB, header, 1–20,000 rows, change type/date/note), then queued (`202` + job ID). Valid rows are upserted by `employee_code`; invalid rows are rejected with reasons and downloadable as a CSV with an `error` column. One import runs at a time.
+- **Alternatives:** Synchronous all-or-nothing import (previous default); `.xlsx` import.
+- **Why:** Project owner wants a template, limits and an accepted/rejected report delivered via a background job. Partial accept means one typo doesn't block 9,999 good rows, and the rejected-rows file closes the fix-and-retry loop.
+- **Trade-off:** A file can be half-applied, so the report must be clear; more moving parts (job table, row results, polling UI) than a synchronous import.
+
+## D-016 — Large PDF exports via background job, delivered as an expiring link by email
+- **What:** PDF ≤ 1,000 rows downloads directly. Above that, HR enters a recipient (prefilled with their own email, restricted to allowed company domains), a background job builds the PDF, and an email with a login-protected link expiring in 24 h is sent. No attachment.
+- **Alternatives:** Hard cap with "narrow your filters"; attach the PDF to the email.
+- **Why:** Project owner wants large PDFs delivered by email. Attachments of full salary data can't be revoked or access-controlled once sent; a link keeps the data behind authentication and an expiry.
+- **Trade-off:** Recipient must log in to download; adds SMTP config and a mail catcher for local runs.
+
+## D-017 — PostgreSQL-backed job queue
+- **What:** Background jobs stored in PostgreSQL and picked up by a worker in the API process (`SELECT … FOR UPDATE SKIP LOCKED` or a library built on it, chosen in Phase 2). Retries up to 3 attempts.
+- **Alternatives:** Redis + BullMQ; in-memory queue.
+- **Why:** No extra infrastructure for a reviewer to install; jobs survive restarts (unlike in-memory); throughput needs are tiny (a few jobs per day).
+- **Trade-off:** Polling adds a few seconds of pickup latency; not built for high job throughput (fine here).
