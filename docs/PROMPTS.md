@@ -204,3 +204,13 @@ reason so it's about status never drifting from the dates instead.
 ```
 
 **Response:** Added idempotent retries (row outcome saved in the row's transaction, finished rows skipped; export email marked sent before sending, never re-sent) as D-020; one active import org-wide, enforced by DB constraint, `409` otherwise, as D-021; reworded all "project owner" reasons and D-014's reason. Added acceptance tests T8–T10.
+
+---
+
+## 8. Phase 2 — Design
+
+```text
+Next
+```
+
+**Response:** Wrote `docs/ARCHITECTURE.md` (mermaid architecture/state/sequence/ER diagrams, stack, tables with constraints and indexes, full API list and error shape, folder structure, security/performance/reliability decisions with trade-offs, testing strategy, `.env` keys) and `docs/PLAN.md` (38 TDD tasks in 8 milestones, acceptance tests T1–T10 mapped to tasks). Logged D-022–D-030.

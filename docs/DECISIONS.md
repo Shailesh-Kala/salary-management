@@ -135,3 +135,57 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Parallel previews with serialised apply (previous default); one active import per user.
 - **Why:** A preview built while another import is pending or applying could be stale by the time it is confirmed; a single active import keeps previews trustworthy and removes all import-vs-import races. A DB constraint closes the race between two simultaneous uploads.
 - **Trade-off:** A forgotten preview blocks other imports until someone cancels it; HR teams must coordinate on bulk uploads (expected to be rare).
+
+## D-022 — Run TypeScript directly on Node 24 (no server build step)
+- **What:** The server runs `.ts` files with Node's native type stripping (`node src/main.ts`); `tsc --noEmit` type-checks in lint/CI; tsconfig uses `erasableSyntaxOnly` (no enums/namespaces/parameter properties).
+- **Alternatives:** `tsc` build to `dist/`; `tsx`/`ts-node` runtime.
+- **Why:** One less tool and build artefact; what runs is exactly what is reviewed.
+- **Trade-off:** Restricts a few TS-only syntax features; if a dependency or feature needs full transpilation, fall back to `tsx`.
+
+## D-023 — Express 5
+- **What:** HTTP layer on Express 5.
+- **Alternatives:** Fastify, Koa, NestJS.
+- **Why:** Most widely known Node framework (easy to review), first-class with Supertest, and v5 forwards rejected promises to the error handler (no async wrappers).
+- **Trade-off:** Slower than Fastify and no built-in schema validation (zod covers it); irrelevant at this load.
+
+## D-024 — `pg` with hand-written parameterised SQL, SQL migrations (no ORM)
+- **What:** Repositories use `pg` with `$n` parameters; migrations are SQL files run by `node-pg-migrate`.
+- **Alternatives:** Prisma, Drizzle, Kysely, TypeORM.
+- **Why:** The interesting queries (medians, outliers, `FILTER`, `SKIP LOCKED`, partial unique indexes, triggers) are native SQL anyway; plain SQL is transparent to a reviewer and has no generator/runtime layer.
+- **Trade-off:** Row types are written by hand and not checked against the schema at compile time — covered by integration tests on every repository.
+
+## D-025 — scrypt passwords and a JWT session cookie
+- **What:** Passwords hashed with Node's built-in `crypto.scrypt` (random salt, `timingSafeEqual`); session is an 8 h HS256 JWT (`jose`) in an httpOnly, SameSite=Strict cookie.
+- **Alternatives:** argon2/bcrypt native modules; server-side sessions table; token in `localStorage`.
+- **Why:** scrypt is a memory-hard KDF with zero dependencies; cookie + SameSite=Strict blocks XSS token theft and CSRF; stateless tokens need no session store.
+- **Trade-off:** Tokens cannot be revoked before expiry (logout clears the cookie only); denylist or sessions table if revocation is needed.
+
+## D-026 — Frontend: Vite, MUI, MUI X DataGrid (server mode), TanStack Query
+- **What:** React 19 + Vite + MUI; MUI X DataGrid (community) for the employee list with server-side paging/sorting; TanStack Query for fetching, caching and job polling; React Router. npm workspaces hold `server` and `web`.
+- **Alternatives:** Create React App (deprecated); hand-rolled table; Redux.
+- **Why:** DataGrid gives the Excel-like table HR expects with server mode built in; TanStack Query handles polling/caching without global state code.
+- **Trade-off:** DataGrid community lacks Excel-style pivots (not needed); bundle size is larger than a plain table.
+
+## D-027 — Integration tests on a real PostgreSQL test database
+- **What:** Integration tests run against `TEST_DATABASE_URL` (migrated once, truncated per test); CI uses a `postgres:16` service container. Unit tests use fake repositories and need no DB.
+- **Alternatives:** In-memory Postgres emulation (pg-mem); SQLite.
+- **Why:** Emulators don't support `percentile_cont`, `SKIP LOCKED`, partial unique indexes or triggers faithfully — exactly what must be tested. A local Postgres already exists.
+- **Trade-off:** Integration tests need a running Postgres and are slower than in-memory ones (still seconds).
+
+## D-028 — "Annual salary" = base salary + allowances
+- **What:** Comparisons, insights, list sorting and outliers use annual gross (base + allowances); base and allowances are still shown separately.
+- **Alternatives:** Base salary only.
+- **Why:** Allowances are part of what the org pays; comparing base only would under-state pay where allowances are large.
+- **Trade-off:** Pay-band comparisons that HR does on base alone need the separate columns.
+
+## D-029 — Offset pagination for the employee list
+- **What:** `LIMIT/OFFSET` with `pageSize ≤ 100` and a stable `ORDER BY col, id`; exports use keyset paging internally.
+- **Alternatives:** Keyset (cursor) pagination for the UI.
+- **Why:** DataGrid's page-number UI maps directly to offset; at 10k–100k rows deep offsets cost milliseconds.
+- **Trade-off:** Degrades at millions of rows; keyset is the upgrade path.
+
+## D-030 — Hand-rolled queue on a `jobs` table, single serial worker
+- **What:** `jobs` table; claim with `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`; lease via `locked_until` for crash recovery; backoff via `run_after`; one in-process worker loop processing jobs serially; `runOnce()` for tests; all times from the injected clock.
+- **Alternatives:** pg-boss; graphile-worker; BullMQ (Redis).
+- **Why:** About 100 lines that cover everything needed (delay, retry, lease) with deterministic tests; domain state (preview, cancel, counts) lives in our own tables either way, so a library would add a second schema without removing code.
+- **Trade-off:** We own the queue code; serial processing means a long import delays exports by up to a minute. pg-boss is the upgrade path if job types or volume grow.
