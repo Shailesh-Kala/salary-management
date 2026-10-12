@@ -14,7 +14,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
    - Done when `npm run lint`, `npm run typecheck` and `npm test` run, and `node server/src/main.ts` starts.
 2. [x] **CI:** a GitHub Actions workflow with a `postgres:16` service that runs lint → typecheck → test on every push.
    - First run was blocked by a GitHub account billing lock; after it was cleared, the re-run passed (lint, typecheck, test, Postgres service up).
-3. [ ] **App skeleton:** `config.ts` (zod env), pino logger with request ID, `AppError` + central error handler, `createApp(deps)`, `GET /health`.
+3. [x] **App skeleton:** `config.ts` (zod env), pino logger with request ID, `AppError` + central error handler, `createApp(deps)`, `GET /health`.
    - Tests:
      - `/health` returns 200 and echoes `X-Request-Id`
      - an unknown route returns 404 in the error shape

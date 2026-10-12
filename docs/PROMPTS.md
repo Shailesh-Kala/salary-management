@@ -291,3 +291,13 @@ run CI workflow now
 ```
 
 **Response:** Re-ran the blocked CI run; it passed end to end (checkout, Node from `.nvmrc`, `npm ci`, lint, typecheck, test, `postgres:16` service). Updated the Task 2 note in PLAN.md.
+
+---
+
+## 14. Phase 3 — Task 3: App skeleton
+
+```text
+next
+```
+
+**Response:** TDD: committed failing tests (health + request ID echo/generation/unsafe-ID replacement, 404 error shape, AppError mapping, generic 500 without message/stack, env validation), then `config.ts` (zod), `AppError`, central `errorHandler`, `createApp({ logger })` with pino-http request IDs, `GET /health`, and `main.ts` loading `.env` via Node's `--env-file-if-exists`. 10 tests pass.
