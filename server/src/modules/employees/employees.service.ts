@@ -1,7 +1,9 @@
 import type { Clock } from '../../lib/clock.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
+import { planChange } from './changes.ts';
 import type {
+  ChangeEventInput,
   CreateEmployeeInput,
   ListEmployeesQuery,
   UpdateProfileInput,
@@ -27,6 +29,13 @@ const AUDITED_ON_HIRE = [
 
 const notFound = () => new AppError('NOT_FOUND', 404, 'Employee not found');
 
+const versionConflict = () =>
+  new AppError(
+    'VERSION_CONFLICT',
+    409,
+    'This employee was changed by someone else. Reload to see the latest details.',
+  );
+
 const invalid = (path: string, message: string) =>
   new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
 
@@ -44,14 +53,51 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
       const updated = await repos.employees.updateProfile(id, version, fields, clock.now());
       if (updated)
         return { ...updated, status: employeeStatus(updated.lastWorkingDay, clock.today()) };
-      if (await repos.employees.findById(id)) {
-        throw new AppError(
-          'VERSION_CONFLICT',
-          409,
-          'This employee was changed by someone else. Reload to see the latest details.',
-        );
-      }
+      if (await repos.employees.findById(id)) throw versionConflict();
       throw notFound();
+    },
+
+    /** Applies an audited change event and records it in history, in one transaction. */
+    recordChange(id: string, input: ChangeEventInput, actor: AuthUser) {
+      return inTransaction(async ({ employees, changes }) => {
+        const current = await employees.findForUpdate(id);
+        if (!current) throw notFound();
+        if (current.version !== input.version) throw versionConflict();
+
+        const bounds = await changes.dateBounds(id);
+        const target =
+          input.changeType === 'relocation' && input.countryCode
+            ? await employees.findCountry(input.countryCode)
+            : null;
+        const plan = planChange(current, input, {
+          today: clock.today(),
+          latestEffectiveDate: bounds.latest,
+          firstNonHireDate: bounds.firstNonHire,
+          newCountryCurrency: target?.currencyCode ?? null,
+        });
+
+        const employee = await employees.applyChange(id, plan.updates, clock.now());
+        const change = await changes.insert({
+          employeeId: id,
+          changeType: input.changeType,
+          effectiveDate: input.effectiveDate,
+          note: input.note,
+          source: 'ui',
+          changes: plan.changes,
+          snapshot: plan.snapshot,
+          changedBy: actor.id,
+          changedAt: clock.now(),
+        });
+        return {
+          employee: { ...employee, status: employeeStatus(employee.lastWorkingDay, clock.today()) },
+          change,
+        };
+      });
+    },
+
+    async history(id: string) {
+      if (!(await repos.employees.findById(id))) throw notFound();
+      return { items: await repos.changes.listForEmployee(id) };
     },
 
     async list(query: ListEmployeesQuery) {

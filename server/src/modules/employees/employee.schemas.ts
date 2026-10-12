@@ -8,6 +8,12 @@ export const isoDate = z.iso.date();
 
 export const note = z.string().trim().min(5).max(1000);
 
+const countryCode = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{2}$/, 'Use a two-letter country code');
+
 export const createEmployeeSchema = z.strictObject({
   employeeCode: z
     .string()
@@ -19,11 +25,7 @@ export const createEmployeeSchema = z.strictObject({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   jobTitle: text,
   department: text,
-  countryCode: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{2}$/, 'Use a two-letter country code'),
+  countryCode,
   hireDate: isoDate,
   baseSalary: positiveAmount,
   allowances: nonNegativeAmount.default('0'),
@@ -78,3 +80,28 @@ export const updateProfileSchema = z
   .refine((p) => p.firstName ?? p.lastName ?? p.email, 'Nothing to update');
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+/** Change types HR can record; hire and exit types are written by their own flows. */
+export const CHANGE_TYPES = [
+  'annual_review',
+  'promotion',
+  'market_adjustment',
+  'relocation',
+  'correction',
+  'other',
+] as const;
+
+export const changeEventSchema = z.strictObject({
+  version: z.int().min(1),
+  changeType: z.enum(CHANGE_TYPES),
+  effectiveDate: isoDate,
+  note,
+  baseSalary: positiveAmount.optional(),
+  allowances: nonNegativeAmount.optional(),
+  jobTitle: text.optional(),
+  department: text.optional(),
+  countryCode: countryCode.optional(),
+  hireDate: isoDate.optional(),
+});
+
+export type ChangeEventInput = z.infer<typeof changeEventSchema>;

@@ -20,6 +20,9 @@ function toCents(amount: string): number {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
 }
 
+/** True when two amounts are equal however they are written ('1800000' vs '1800000.00'). */
+export const sameAmount = (a: string, b: string) => toCents(a) === toCents(b);
+
 function fromCents(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }

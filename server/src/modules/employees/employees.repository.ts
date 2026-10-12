@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import type { AuditedField } from './changes.ts';
 import type { ListEmployeesQuery } from './employee.schemas.ts';
 import type { EmployeeStatus } from './status.ts';
 
@@ -102,6 +103,35 @@ const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
 const COUNTRY_COLUMNS = `c.currency_code AS "currencyCode", c.name AS "countryName"`;
 
+// Whitelisted columns a change event may set.
+const AUDITED_COLUMNS: Record<AuditedField, string> = {
+  baseSalary: 'base_salary',
+  allowances: 'allowances',
+  jobTitle: 'job_title',
+  department: 'department',
+  countryCode: 'country_code',
+  hireDate: 'hire_date',
+};
+
+export type HistoryEntry = {
+  id: string;
+  changeType: string;
+  effectiveDate: string;
+  note: string;
+  source: 'ui' | 'import' | 'seed';
+  changes: Record<string, { old: unknown; new: unknown }>;
+  snapshot: Snapshot;
+  changedBy: { id: string; name: string };
+  changedAt: Date;
+};
+
+const HISTORY_COLUMNS = `ch.id::text AS id, ch.change_type AS "changeType",
+  ch.effective_date AS "effectiveDate", ch.note, ch.source, ch.changes,
+  json_build_object('baseSalary', ch.base_salary::text, 'allowances', ch.allowances::text,
+    'currencyCode', ch.currency_code, 'countryCode', ch.country_code,
+    'jobTitle', ch.job_title, 'department', ch.department) AS snapshot,
+  json_build_object('id', u.id, 'name', u.name) AS "changedBy", ch.changed_at AS "changedAt"`;
+
 /** Repositories bound to one connection, so callers can run them inside a transaction. */
 export function employeeRepositories(db: Pool | PoolClient) {
   return {
@@ -190,6 +220,40 @@ export function employeeRepositories(db: Pool | PoolClient) {
           )
         ).rows[0] ?? null,
 
+      /** Locks the row until the transaction ends, so concurrent change events queue up. */
+      findForUpdate: async (id: string) =>
+        (
+          await db.query<EmployeeDetail>(
+            `SELECT ${EMPLOYEE_COLUMNS}, ${COUNTRY_COLUMNS}
+               FROM employees JOIN countries c ON c.code = employees.country_code
+              WHERE employees.id = $1
+                FOR UPDATE OF employees`,
+            [id],
+          )
+        ).rows[0] ?? null,
+
+      /** Sets the given audited fields and bumps the version. */
+      applyChange: async (
+        id: string,
+        updates: Partial<Record<AuditedField, string>>,
+        now: Date,
+      ) => {
+        const params: unknown[] = [id, now];
+        const sets = Object.entries(updates).map(
+          ([field, value]) => `${AUDITED_COLUMNS[field as AuditedField]} = $${params.push(value)}`,
+        );
+        const { rows } = await db.query<EmployeeDetail>(
+          `WITH updated AS (
+             UPDATE employees SET ${[...sets, 'version = version + 1', 'updated_at = $2'].join(', ')}
+              WHERE id = $1
+              RETURNING *)
+           SELECT ${EMPLOYEE_COLUMNS}, ${COUNTRY_COLUMNS}
+             FROM updated JOIN countries c ON c.code = updated.country_code`,
+          params,
+        );
+        return rows[0] as EmployeeDetail;
+      },
+
       /** Returns null when the id is unknown or `version` is stale (optimistic locking). */
       updateProfile: async (
         id: string,
@@ -246,13 +310,38 @@ export function employeeRepositories(db: Pool | PoolClient) {
     },
 
     changes: {
+      dateBounds: async (employeeId: string) =>
+        (
+          await db.query<{ latest: string | null; firstNonHire: string | null }>(
+            `SELECT max(effective_date) AS latest,
+                    min(effective_date) FILTER (WHERE change_type <> 'hire') AS "firstNonHire"
+               FROM employee_changes WHERE employee_id = $1`,
+            [employeeId],
+          )
+        ).rows[0]!,
+
+      /** Newest first; ties on the same effective date go by insertion order. */
+      listForEmployee: async (employeeId: string) =>
+        (
+          await db.query<HistoryEntry>(
+            `SELECT ${HISTORY_COLUMNS}
+               FROM employee_changes ch JOIN hr_users u ON u.id = ch.changed_by
+              WHERE ch.employee_id = $1
+              ORDER BY ch.effective_date DESC, ch.id DESC`,
+            [employeeId],
+          )
+        ).rows,
+
       insert: async (c: NewChange) => {
         const s = c.snapshot;
-        await db.query(
-          `INSERT INTO employee_changes (employee_id, change_type, effective_date, note, source,
-             changes, base_salary, allowances, currency_code, country_code, job_title, department,
-             changed_by, changed_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        const { rows } = await db.query<HistoryEntry>(
+          `WITH ch AS (
+             INSERT INTO employee_changes (employee_id, change_type, effective_date, note, source,
+               changes, base_salary, allowances, currency_code, country_code, job_title,
+               department, changed_by, changed_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+             RETURNING *)
+           SELECT ${HISTORY_COLUMNS} FROM ch JOIN hr_users u ON u.id = ch.changed_by`,
           [
             c.employeeId,
             c.changeType,
@@ -270,6 +359,7 @@ export function employeeRepositories(db: Pool | PoolClient) {
             c.changedAt,
           ],
         );
+        return rows[0] as HistoryEntry;
       },
     },
   };

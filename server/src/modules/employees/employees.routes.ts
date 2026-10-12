@@ -2,6 +2,7 @@ import { type Request, Router } from 'express';
 import { z } from 'zod';
 import { AppError } from '../../lib/errors.ts';
 import {
+  changeEventSchema,
   createEmployeeSchema,
   listEmployeesQuery,
   updateProfileSchema,
@@ -33,6 +34,17 @@ export function employeeRoutes(employees: EmployeesService) {
   routes.patch('/employees/:id', async (req, res) => {
     const id = employeeId(req);
     res.json(await employees.updateProfile(id, updateProfileSchema.parse(req.body)));
+  });
+
+  routes.get('/employees/:id/changes', async (req, res) => {
+    res.json(await employees.history(employeeId(req)));
+  });
+
+  routes.post('/employees/:id/changes', async (req, res) => {
+    const id = employeeId(req);
+    res
+      .status(201)
+      .json(await employees.recordChange(id, changeEventSchema.parse(req.body), req.user!));
   });
 
   routes.post('/employees', async (req, res) => {
