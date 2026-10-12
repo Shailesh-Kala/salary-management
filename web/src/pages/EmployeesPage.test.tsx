@@ -68,7 +68,7 @@ function setup(path = '/employees', listResponse?: () => Response) {
   return { lastQuery: () => queries.at(-1), queries };
 }
 
-const user = () => userEvent.setup();
+const user = () => userEvent.setup({ delay: null });
 const location = () => screen.getByTestId('location');
 
 async function choose(label: string, option: string) {

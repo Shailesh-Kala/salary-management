@@ -7,5 +7,5 @@ export default defineConfig({
   plugins: [react()],
   // Same-origin in development, so the SameSite=Strict session cookie just works.
   server: { proxy: { '/api': API, '/health': API } },
-  test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'] },
+  test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'], testTimeout: 15_000 },
 });

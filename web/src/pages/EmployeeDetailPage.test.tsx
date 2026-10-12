@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { employeeDetail, USER } from '../test/fixtures.ts';
 import { json, mockApi, renderAt } from '../test/render.tsx';
 
-const user = () => userEvent.setup();
+const user = () => userEvent.setup({ delay: null });
 
 function setup(
   patchResponse: () => Response = () =>

@@ -8,7 +8,7 @@ const USER = { id: 'u1', email: 'hr@acme.local', name: 'HR Manager' };
 const location = () => screen.getByTestId('location');
 
 async function signIn() {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   await user.type(screen.getByLabelText(/email/i), 'hr@acme.local');
   await user.type(screen.getByLabelText(/password/i), 'secret');
   await user.click(screen.getByRole('button', { name: /sign in/i }));
@@ -100,7 +100,9 @@ describe('protected routes', () => {
     });
     renderAt('/employees');
 
-    await userEvent.setup().click(await screen.findByRole('button', { name: /sign out/i }));
+    await userEvent
+      .setup({ delay: null })
+      .click(await screen.findByRole('button', { name: /sign out/i }));
 
     await waitFor(() => expect(location()).toHaveTextContent(/^\/login$/));
     expect(fetchMock).toHaveBeenCalledWith(

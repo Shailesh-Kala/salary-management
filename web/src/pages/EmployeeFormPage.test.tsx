@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { employeeDetail, FILTER_OPTIONS, USER } from '../test/fixtures.ts';
 import { json, mockApi, renderAt } from '../test/render.tsx';
 
-const user = () => userEvent.setup();
+const user = () => userEvent.setup({ delay: null });
 
 function setup(createResponse: () => Response) {
   const posted: unknown[] = [];
