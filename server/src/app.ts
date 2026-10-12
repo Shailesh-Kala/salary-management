@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import express from 'express';
+import type { Pool } from 'pg';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
 import { AppError } from './lib/errors.ts';
 import { errorHandler } from './middleware/error-handler.ts';
 
-export type AppDeps = { logger: Logger };
+export type AppDeps = { logger: Logger; db: Pool };
 
 // Accept a caller's request ID only if it can't inject anything into logs or headers.
 const SAFE_REQUEST_ID = /^[\w-]{1,64}$/;
 
-export function createApp({ logger }: AppDeps) {
+export function createApp({ logger, db }: AppDeps) {
   const app = express();
 
   app.use(
@@ -26,8 +27,14 @@ export function createApp({ logger }: AppDeps) {
     }),
   );
 
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
+  app.get('/health', async (req, res) => {
+    try {
+      await db.query('SELECT 1');
+      res.json({ status: 'ok', db: 'ok' });
+    } catch (err) {
+      req.log.warn({ err }, 'health check: database unavailable');
+      res.status(503).json({ status: 'error', db: 'down' });
+    }
   });
 
   app.use((req, _res, next) => {

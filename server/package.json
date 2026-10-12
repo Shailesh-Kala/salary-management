@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=../.env src/main.ts",
     "dev": "node --env-file-if-exists=../.env --watch src/main.ts",
+    "migrate": "node --env-file-if-exists=../.env scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
