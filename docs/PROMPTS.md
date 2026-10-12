@@ -408,3 +408,13 @@ next
 ```
 
 **Response:** TDD: failing unit tests (12 accepted/rejected amount formats, half-up monthly split incl. the half-cent case, T17 `today()` in Asia/Kolkata incl. the 18:30 UTC midnight switch while the process runs in Los Angeles, status boundary on the last working day, invalid `APP_TIMEZONE`); then `positiveAmount`/`nonNegativeAmount` zod schemas (plain decimal strings fitting NUMERIC(14,2)), integer-cent `annualToMonthly`, `createClock(timeZone)` with `today()` via `Intl.DateTimeFormat('en-CA')`, `employeeStatus`, and `APP_TIMEZONE` config. 104 tests pass.
+
+---
+
+## 25. Phase 3 — Task 10: Create employee API
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for the create schema (normalisation, every missing field, 9 invalid values, unknown fields), the service with fake repositories (derived currency/status, `hire` change effective on hire date with full snapshot, default/HR note, unsupported country and future hire date write nothing), the endpoint (201, duplicate code/email → 409, 400 paths, unsupported country, 401), atomicity (failing hire-change insert leaves no employee) and the append-only trigger; then migration `0002` (employees with checks + indexes incl. trigram search, `employee_changes` + `reject_modification()` trigger), repositories, service, route and PG unique-violation → `DUPLICATE` mapping. Fixed malformed amounts reporting two errors (refine → pipe). 133 tests pass; migrated the app DB.

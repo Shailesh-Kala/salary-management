@@ -69,7 +69,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - annual → monthly rounding
      - `active` / `on_notice` / `exited` from dates and a fixed clock, including the boundary on the last working day itself
      - **T17:** `today()` with `APP_TIMEZONE=Asia/Kolkata` at `2026-03-31T19:00:00Z` → `2026-04-01`
-10. [ ] **Create employee API:** migration `0002` (`employees` with checks and indexes, `employee_changes` with the immutability trigger), schemas, service, repository, `POST /api/employees`.
+10. [x] **Create employee API:** migration `0002` (`employees` with checks and indexes, `employee_changes` with the immutability trigger), schemas, service, repository, `POST /api/employees`.
     - Unit tests: schema rules; the service writes a `hire` change with a full snapshot (including country and currency); email is lower-cased.
     - Integration tests:
       - 201 response
