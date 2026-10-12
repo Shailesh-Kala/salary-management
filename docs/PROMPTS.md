@@ -398,3 +398,13 @@ next
 ```
 
 **Response:** Added the `web` workspace (Vite 8, React 19, MUI 9, React Router 8, TanStack Query, Vitest + jsdom + Testing Library, react-hooks lint rules). TDD: failing RTL tests (login → `/employees`, `?next=` return, three open-redirect attempts ignored, generic 401 alert, protected-route redirect with `next`, valid session, sign out); then the API client (credentials, error shape, network error), `useMe`/`useLogin`, `safeNext`, `RequireAuth`, app bar with sign out (clears all cached data), login page. Fixed an immediate `/me` refetch after login (5-min `staleTime`) and made a failed background refetch not blank the page. Smoke-tested login through the Vite proxy against the test DB; production build compiles. README Setup/Run/Test filled in. 70 tests pass.
+
+---
+
+## 24. Phase 3 — Task 9: Money and status helpers
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests (12 accepted/rejected amount formats, half-up monthly split incl. the half-cent case, T17 `today()` in Asia/Kolkata incl. the 18:30 UTC midnight switch while the process runs in Los Angeles, status boundary on the last working day, invalid `APP_TIMEZONE`); then `positiveAmount`/`nonNegativeAmount` zod schemas (plain decimal strings fitting NUMERIC(14,2)), integer-cent `annualToMonthly`, `createClock(timeZone)` with `today()` via `Intl.DateTimeFormat('en-CA')`, `employeeStatus`, and `APP_TIMEZONE` config. 104 tests pass.

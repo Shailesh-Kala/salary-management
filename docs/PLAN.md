@@ -63,7 +63,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
    ✅ *Usable: HR can log in.*
 
 ## Slice C: Employee list
-9. [ ] **Money and status helpers.**
+9. [x] **Money and status helpers.**
    - Unit tests:
      - amount validation (> 0, ≤ 2 decimals, no symbols)
      - annual → monthly rounding
