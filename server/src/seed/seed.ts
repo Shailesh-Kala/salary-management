@@ -90,19 +90,14 @@ async function insertChanges(
   adminId: string,
 ) {
   const changes = batch.flatMap((e) => {
-    const common = {
+    // Seeded exits change no pay fields, so both entries carry the same snapshot.
+    const base = {
+      employee: e,
       employeeId: ids.get(e.employeeCode)!,
-      snapshot: [
-        e.baseSalary,
-        e.allowances,
-        currencyOf.get(e.countryCode)!,
-        e.countryCode,
-        e.jobTitle,
-        e.department,
-      ],
+      currency: currencyOf.get(e.countryCode)!,
     };
     const hire = {
-      ...common,
+      ...base,
       type: 'hire',
       date: e.hireDate,
       note: 'Seeded employee record',
@@ -116,7 +111,7 @@ async function insertChanges(
     };
     if (!e.exitType) return [hire];
     const exit = {
-      ...common,
+      ...base,
       type: 'exit',
       date: e.noticeDate!,
       note: 'Seeded exit record',
@@ -134,25 +129,25 @@ async function insertChanges(
     `INSERT INTO employee_changes (employee_id, change_type, effective_date, note, source, changes,
        base_salary, allowances, currency_code, country_code, job_title, department, changed_by,
        changed_at)
-     SELECT employee_id, change_type, effective_date, note, 'seed', changes, base_salary,
-       allowances, currency_code, country_code, job_title, department, $11, effective_date::timestamptz
-     FROM unnest($1::uuid[], $2::text[], $3::date[], $4::text[], $5::jsonb[], $6::numeric[],
-       $7::numeric[], $8::char(3)[], $9::char(2)[], $10::text[], $12::text[])
-       AS t(employee_id, change_type, effective_date, note, changes, base_salary, allowances,
-            currency_code, country_code, job_title, department)`,
+     SELECT t.*, $13::uuid, t.effective_date::timestamptz
+     FROM unnest($1::uuid[], $2::text[], $3::date[], $4::text[], $5::text[], $6::jsonb[],
+       $7::numeric[], $8::numeric[], $9::char(3)[], $10::char(2)[], $11::text[], $12::text[])
+       AS t(employee_id, change_type, effective_date, note, source, changes, base_salary,
+            allowances, currency_code, country_code, job_title, department)`,
     [
       column((c) => c.employeeId),
       column((c) => c.type),
       column((c) => c.date),
       column((c) => c.note),
+      column(() => 'seed'),
       column((c) => JSON.stringify(c.changes)),
-      column((c) => c.snapshot[0]),
-      column((c) => c.snapshot[1]),
-      column((c) => c.snapshot[2]),
-      column((c) => c.snapshot[3]),
-      column((c) => c.snapshot[4]),
+      column((c) => c.employee.baseSalary),
+      column((c) => c.employee.allowances),
+      column((c) => c.currency),
+      column((c) => c.employee.countryCode),
+      column((c) => c.employee.jobTitle),
+      column((c) => c.employee.department),
       adminId,
-      column((c) => c.snapshot[5]),
     ],
   );
   return changes.length;
