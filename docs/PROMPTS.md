@@ -160,3 +160,28 @@ Q9. Let's make it 1000 rows at a time and if user wants more then suggest that i
 ```
 
 **Response:** Added CSV template with example rows, upload limits, background import job with accepted/rejected report and rejected-rows CSV, PDF > 1,000 rows via background job + email, and a PostgreSQL-backed job queue (F9). Logged D-015–D-017; raised OQ10 (email a login-protected expiring link instead of an attachment) and OQ11 (partial import vs all-or-nothing).
+
+---
+
+## 6. Phase 1 — Requirements (open questions OQ10–OQ11)
+
+```text
+let's do:
+Q10. Yes, link only, with one tightening. But since the link already requires an HR login, the simplest safe design is to send the email only to the logged-in user's own account address, with no typed-in recipient at all. That removes the mistyped-address risk completely and makes the domain allowlist unnecessary.
+Few more things here:
+- the generated file to be deleted when the link expires,
+- each download recorded in the audit log, and
+- the link to work only for the user who requested the export.
+Q11. Yes, partial import, with a preview step first:
+- Validate all rows and show counts (valid / rejected) before anything is saved.
+- The user chooses "Import valid rows" or "Cancel".
+- Rejected rows are downloadable as a CSV with an added "error" column so they can be
+fixed and re-uploaded (safe because import upserts by employee code).
+Each row is saved in its own transaction. Salary changes from import still create history
+and audit entries.
+
+Log both as decisions, and add tests for: the preview counts, cancel saving nothing, the
+rejected-rows CSV, and the download link rejecting other users and expired links.
+```
+
+**Response:** Updated REQUIREMENTS.md: emailed exports go only to the requester's own address, link bound to the requester, 24 h expiry with file deletion via a scheduled cleanup job, downloads audited; import gains a preview → confirm/cancel step with per-row transactions and re-validation at apply. Added §11 required acceptance tests T1–T7 (to be written first in Phase 3) and logged D-018, D-019.

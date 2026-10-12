@@ -132,18 +132,24 @@ We deliberately don't compare a job title *across* countries in local currency, 
    - its header doesn't match the template
    - it has **0 rows or > 20,000 rows**
    - the import form is missing the **change type, effective date or note**. These apply to every change in the file, e.g. *"FY26 annual review"*.
-3. **Queued:** on success the API returns an **import job ID** at once (`202 Accepted`), and the job runs in the background queue (F9). HR can leave the page.
-4. **Row-by-row validation and partial import:**
+3. **Queued for validation:** on success the API returns an **import job ID** at once (`202 Accepted`). Validation runs in the background queue (F9), and HR can leave the page.
+4. **Preview (validation only, nothing saved):**
    - Every row is validated: field rules as in §4.2, duplicate codes or emails inside the file, and conflicts with existing employees.
-   - **Valid rows are imported and invalid rows are rejected.** One bad row doesn't block the others.
-   - Valid rows are upserted by `employee_code` in batched transactions (new codes are created, existing ones updated), and every change gets a history entry with `source = import`.
-   - Rows that are identical to the current data are counted as *unchanged* and create no history entry.
-5. **Import report:** available on the job page once the job finishes. It shows:
-   - totals: **received, created, updated, unchanged, rejected**
-   - a table of rejected rows with row number, employee code and **reason(s)**
-   - a **"Download rejected rows" CSV**: the original columns plus an `error` column, so HR can fix the rows and re-upload just that file
-6. **Import history:** a list of past imports with status (`queued`, `running`, `completed`, `failed`), who uploaded each one, when, and its counts.
-7. **Concurrency:** only one import runs at a time, and others wait in the queue, so two imports can never race on the same employees.
+   - The job then waits in `awaiting_confirmation` and shows a **preview**:
+     - counts: **total, valid (to create / to update / unchanged), rejected**
+     - a table of rejected rows with row number, employee code and **reason(s)**
+     - a **"Download rejected rows" CSV**: the original columns plus an `error` column
+   - Rows that are identical to the current data are counted as *unchanged* and will create no history entry.
+5. **Decision:** HR chooses **"Import valid rows"** or **"Cancel"**.
+   - **Cancel:** the job becomes `cancelled`. **No employee, history or audit data is written.** The staged rows are kept only for the report.
+   - **Import valid rows:** the job is queued for the apply step.
+6. **Apply (background):**
+   - Each valid row is upserted by `employee_code` in **its own transaction**, so a failure in one row never rolls back the others.
+   - Each row is **re-validated at apply time**, because data may have changed since the preview. A row that now fails is moved to rejected with its reason.
+   - Every salary, title, department or lifecycle change creates a change-history entry with `source = import`, using the import's change type, effective date and note.
+7. **Final report:** totals **created, updated, unchanged, rejected**, plus the rejected-rows CSV. HR fixes the rejected rows and **re-uploads just that file**. This is safe because import upserts by employee code.
+8. **Import history:** a list of past imports with status, who uploaded each one, when, and its counts.
+9. **Concurrency:** only one import **applies** at a time, and others wait in the queue, so two imports can never race on the same employees. Previews can run in parallel.
 
 Lifecycle changes (resignations) are done in the UI, not by import.
 
@@ -156,16 +162,21 @@ Lifecycle changes (resignations) are done in the UI, not by import.
   | **PDF** | Landscape table with title, filters applied, generation timestamp, rates "as of" date and page numbers. See the size rule below. |
 - **PDF size rule:**
   - **≤ 1,000 rows:** downloaded directly.
-  - **> 1,000 rows:** the UI tells HR the file is too large to download directly and offers to **email it**. HR enters a recipient email, **prefilled with their own address**. The API returns an **export job ID** (`202 Accepted`), and the PDF is generated in the background queue (F9).
-  - **Email delivery:** the email contains a **secure download link, not the file as an attachment**. Opening the link requires an HR login, and it **expires after 24 hours**. The recipient must be an address in an allowed company domain (configurable, e.g. `acme.com`). The export also appears on the job status page with its own download link.
+  - **> 1,000 rows:** the UI tells HR the file is too large to download directly and that it will be **emailed to their own account address**. **There is no recipient field**: the email always goes to the logged-in user's address, so it can't be mistyped or sent elsewhere. The API returns an **export job ID** (`202 Accepted`), and the PDF is generated in the background queue (F9).
+  - **Email delivery:** the email contains a **download link, not the file as an attachment**, and no salary data in the body. The link:
+    - requires an HR login, and **works only for the user who requested the export**. Anyone else gets `403`, even another HR user.
+    - **expires after 24 hours**, after which it returns `410 Gone`.
+  - **File deletion:** when the link expires, the generated file is **deleted**. A cleanup job is scheduled for the expiry time when the file is created.
+  - The export also appears on the requester's job status page with the same download link and the same rules.
 - **Formula-injection guard:** in CSV and Excel output, any cell starting with `= + - @` is escaped.
-- Every export writes an audit entry recording who exported, the format, the filters, the row count and the recipient email (for emailed exports).
+- **Audit:** every export writes an audit entry recording who exported, the format, the filters and the row count. **Every download of an emailed export** is also recorded (who, when, which export), and so are refused download attempts.
 
 ### 4.9 F9: Background jobs
 - Import and large-export jobs run in a **persistent queue stored in PostgreSQL**, so no extra infrastructure (Redis, etc.) is needed and jobs survive an API restart.
-- **Job lifecycle:** `queued → running → completed | failed`.
+- **Job lifecycle:** `queued → running → completed | failed`. Imports add two states: `awaiting_confirmation` (the preview is ready) and `cancelled`.
   - A job interrupted by a crash or restart is retried automatically, up to 3 attempts.
   - Each import row is applied idempotently by `employee_code`, so a retry never duplicates data.
+- **Delayed jobs:** a job can be scheduled to run at a given time. This is used to delete export files at link expiry.
 - **Job status page:** HR sees their jobs with type, status, progress (rows processed for imports), created and finished times, and links to the report or file. The UI polls for status while a job is running.
 - **Email:** sent over SMTP using settings from environment variables. For local runs, a local mail catcher (e.g. Mailpit) is used, so no real email leaves the machine.
 
@@ -225,13 +236,15 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 | changed_by | HR user id |
 | changed_at | timestamp |
 
-**Export log:** `id`, `exported_by`, `format`, `filters`, `row_count`, `recipient_email` (nullable), `exported_at`.
+**Export log:** `id`, `exported_by`, `format`, `filters`, `row_count`, `exported_at`.
 
-**Background job:** `id`, `type` (`import` \| `export_pdf`), `status` (`queued` \| `running` \| `completed` \| `failed`), `attempts`, `payload` (import file and form fields, or export filters and recipient), `progress`, `result` (import counts / file reference), `error`, `created_by`, `created_at`, `started_at`, `finished_at`.
+**Export download log:** `export_id`, `user_id`, `outcome` (`downloaded` \| `forbidden` \| `expired`), `at`.
 
-**Import row result:** `job_id`, `row_number`, `employee_code`, `outcome` (`created` \| `updated` \| `unchanged` \| `rejected`), `errors`, `raw_row` (the original values, kept for rejected rows so they can be downloaded).
+**Background job:** `id`, `type` (`import_validate` \| `import_apply` \| `export_pdf` \| `export_cleanup`), `status` (`queued` \| `running` \| `awaiting_confirmation` \| `completed` \| `cancelled` \| `failed`), `run_after`, `attempts`, `payload` (import file and form fields, or export filters), `progress`, `result` (import counts / file reference), `error`, `created_by`, `created_at`, `started_at`, `finished_at`.
 
-**Export file:** `job_id`, file content or reference, `download_token_hash`, `expires_at` (24 h).
+**Import row:** `job_id`, `row_number`, `employee_code`, `outcome` (`valid` \| `rejected` at preview; `created` \| `updated` \| `unchanged` \| `rejected` after apply), `errors`, `raw_row` (the original values, for the rejected-rows CSV).
+
+**Export file:** `job_id`, `requested_by` (only this user may download), file content (deleted at expiry), `expires_at` (24 h), `deleted_at`.
 
 **Country** (reference data, seeded): `code`, `name`, `currency_code` (ISO 4217).
 
@@ -250,9 +263,11 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 - **CORS** is limited to the frontend origin, and security headers are set.
 - **Data minimisation:** see §6. Exports are themselves audited (§4.8), because a file of everyone's salary is the biggest leak risk.
 - **Emailed exports:**
-  - Links only, with no attachment.
-  - The link token is random, single-purpose, and stored only as a hash. It expires in 24 h, and downloading still needs an HR login.
-  - Recipients are restricted to allowed company domains.
+  - Sent only to the requesting user's own account address; there is no recipient input.
+  - A link only, with no attachment.
+  - Downloading requires a login **and** being the requester.
+  - The link expires in 24 h and the file is deleted at expiry.
+  - Every download and every refused attempt is audited.
   - Email bodies contain no salary data.
 
 ## 8. Non-functional targets
@@ -263,7 +278,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 | List / search API | p95 < 300 ms at 10k rows (indexed filters, `LIMIT/OFFSET` with max page size 100) |
 | Insights API | p95 < 500 ms; aggregations in SQL |
 | Slip (HTML / PDF) | p95 < 300 ms / < 1 s |
-| CSV import | Upload checks respond in < 1 s; 10,000-row background job finishes in < 30 s |
+| CSV import | Upload checks respond in < 1 s. For 10,000 rows: preview ready in < 15 s, apply (one transaction per row) finishes in < 60 s |
 | Export | CSV and Excel: 10,000 rows streamed in < 5 s. PDF: ≤ 1,000 rows directly in < 5 s; 10,000-row background PDF job in < 60 s |
 | Job queue | A job is picked up within 5 s of being queued; one import runs at a time |
 | Seed | 10,000 deterministic employees in < 10 s (measured and documented) |
@@ -289,6 +304,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 8. All seed and demo data is synthetic. No real personal data is used.
 9. The app runs locally. The reviewer provides PostgreSQL connection details in `.env`.
 10. SMTP settings come from `.env`. For local runs a mail catcher (e.g. Mailpit) receives the emails.
+11. Every HR user has a valid work email on their account, which is used for export emails.
 
 ## 10. Resolved questions
 | # | Question | Decision |
@@ -302,9 +318,20 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 | OQ7 | Back-dated changes? | Yes, with a required note |
 | OQ8 | `.xlsx` import? | No. CSV only, from a template with example rows; size and row limits; background job with an accepted/rejected report (D-015) |
 | OQ9 | PDF export cap | Direct download for ≤ 1,000 rows; larger PDFs are generated by a background job and emailed (D-016) |
+| OQ10 | Email attachment vs link | Link only, sent **only to the requester's own account address** with no recipient field, so no domain allowlist is needed. The link works only for the requester and expires in 24 h, the file is deleted at expiry, and every download is audited (D-018) |
+| OQ11 | Partial vs all-or-nothing import | Partial, with a **preview step**: validate, show counts, then "Import valid rows" or "Cancel". One transaction per row; the rejected-rows CSV can be re-uploaded (D-019) |
 
-## 11. Open questions
-| # | Question | Proposed default |
-|---|---|---|
-| OQ10 | For emailed exports, OK to send a **login-protected link that expires in 24 h** (instead of attaching the file), and to restrict recipients to company domains? | Yes: link only, allowed domains configured in `.env` |
-| OQ11 | Import rejects only the invalid rows (valid rows are still imported). OK, rather than all-or-nothing? | Yes: partial import with a rejected-rows report |
+## 11. Required acceptance tests (requested by the project owner)
+These are written first (TDD) in Phase 3 and must stay green.
+| # | Test |
+|---|---|
+| T1 | **Preview counts:** uploading a CSV with a known mix of rows (to create, to update, unchanged, invalid, example rows, in-file duplicates) produces exactly the expected valid / rejected / create / update / unchanged counts. |
+| T2 | **Cancel saves nothing:** after a preview, cancelling leaves the employee, change-history and audit tables unchanged (row counts and contents compared before and after). |
+| T3 | **Rejected-rows CSV:** the download contains the original header plus `error`, one line per rejected row with its original values and reason(s), and can be re-uploaded as-is after fixing. |
+| T4 | **Download link rejects other users:** another authenticated HR user requesting the export gets `403`; the attempt is audited and no file is returned. |
+| T5 | **Download link rejects expired links:** with an injected clock past `expires_at`, the requester gets `410`; the attempt is audited. |
+| T6 | **File deleted at expiry:** running the cleanup job removes the file content and sets `deleted_at`. |
+| T7 | **Import creates history:** a salary change applied by import writes a change-history entry with `source = import` and the import's note. |
+
+## 12. Open questions
+None at the moment.
