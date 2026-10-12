@@ -281,3 +281,13 @@ Next
 ```
 
 **Response:** Added `.github/workflows/ci.yml` (Node from `.nvmrc`, npm cache, `postgres:16` service, `TEST_DATABASE_URL`, `npm ci` → lint → typecheck → test). GitHub did not start the job because the account is locked for billing; the same steps pass locally from a clean `npm ci`.
+
+---
+
+## 13. Phase 3 — Task 2: CI (re-run)
+
+```text
+run CI workflow now
+```
+
+**Response:** Re-ran the blocked CI run; it passed end to end (checkout, Node from `.nvmrc`, `npm ci`, lint, typecheck, test, `postgres:16` service). Updated the Task 2 note in PLAN.md.
