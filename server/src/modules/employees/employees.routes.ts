@@ -5,6 +5,10 @@ import type { EmployeesService } from './employees.service.ts';
 export function employeeRoutes(employees: EmployeesService) {
   const routes = Router();
 
+  routes.get('/employees/filter-options', async (_req, res) => {
+    res.json(await employees.filterOptions());
+  });
+
   routes.get('/employees', async (req, res) => {
     res.json(await employees.list(listEmployeesQuery.parse(req.query)));
   });

@@ -26,6 +26,8 @@ const invalid = (path: string, message: string) =>
 
 export function createEmployeesService({ clock, repos, inTransaction }: EmployeesServiceDeps) {
   return {
+    filterOptions: () => repos.employees.filterOptions(),
+
     async list(query: ListEmployeesQuery) {
       const rates = await repos.employees.ratesInfo(query.currency);
       if (!rates.known) throw invalid('currency', 'Unknown currency');

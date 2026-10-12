@@ -157,6 +157,25 @@ export function employeeRepositories(db: Pool | PoolClient) {
         return { items, total: rows[0]!.total };
       },
 
+      /** Choices for the list filters: reference data plus the values actually in use. */
+      filterOptions: async () => {
+        const values = async (sql: string) =>
+          (await db.query<{ value: string }>(sql)).rows.map((r) => r.value);
+        const { rows: countries } = await db.query<{
+          code: string;
+          name: string;
+          currencyCode: string;
+        }>('SELECT code, name, currency_code AS "currencyCode" FROM countries ORDER BY name');
+        return {
+          countries,
+          departments: await values(
+            'SELECT DISTINCT department AS value FROM employees ORDER BY 1',
+          ),
+          jobTitles: await values('SELECT DISTINCT job_title AS value FROM employees ORDER BY 1'),
+          currencies: await values('SELECT currency_code AS value FROM exchange_rates ORDER BY 1'),
+        };
+      },
+
       findCountry: async (code: string) =>
         (
           await db.query<{ code: string; currencyCode: string }>(
