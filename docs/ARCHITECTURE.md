@@ -5,7 +5,7 @@ This document turns [REQUIREMENTS.md](REQUIREMENTS.md) into a design. Decision r
 ## 1. Overview
 - **One Node.js process** serves the JSON API and runs the background job worker. **One PostgreSQL database** holds all data, including the job queue and generated files.
 - **The React single-page app** is served by Vite in development and talks to the API on the same origin, through the Vite proxy.
-- **No other infrastructure.** SMTP is the only external dependency, and it is used only for large-export emails (Mailpit locally).
+- **No other infrastructure.** SMTP is the only external dependency, and it is used only for large-export emails (a Mailtrap Sandbox or Mailpit test inbox locally).
 
 ### 1.1 Architecture diagram
 ```mermaid
@@ -28,7 +28,7 @@ flowchart LR
   end
 
   PG[("PostgreSQL 16<br/>employees · employee_changes · imports<br/>import_rows · exports · jobs · …")]
-  SMTP["SMTP<br/>(Mailpit locally)"]
+  SMTP["SMTP<br/>(Mailtrap Sandbox / Mailpit locally)"]
 
   SPA -- "JSON over HTTP(S)<br/>httpOnly session cookie" --> MW
   RP -- "pg pool (10 conns, 5 s statement timeout)" --> PG
@@ -141,7 +141,7 @@ sequenceDiagram
 | CSV | `csv-parse`, `csv-stringify` | Streaming |
 | Excel | `exceljs` (streaming `WorkbookWriter`) | Export only |
 | PDF | `pdfkit` | Slips and list export |
-| Email | `nodemailer` (SMTP) | Mailpit locally; a fake mailer in tests |
+| Email | `nodemailer` (SMTP, optional auth) | Mailtrap Sandbox or Mailpit locally; a fake mailer in tests |
 | Uploads | `multer` (memory storage, 5 MB limit) | CSV only |
 | Frontend | React 19, Vite, TypeScript, MUI, MUI X DataGrid (server mode), React Router, TanStack Query | D-026 |
 | Tests | Vitest, Supertest, React Testing Library | Real PostgreSQL test DB (D-027) |
@@ -402,7 +402,7 @@ salary-management/
 | **Emailed exports:** sent only to the requester's address, with a link to the app page `/exports/:id` and no attachment. Downloading needs the same user's session, the link expires in 24 h, and the file is deleted by a delayed cleanup job (D-018, D-032). Login's `next` parameter only accepts relative paths. | A colleague can't receive an export. |
 | **Rate audit:** every exchange-rate update writes old → new, who and when to the append-only `exchange_rate_changes`. | |
 | **Import data minimisation:** the uploaded file and `import_rows.raw` are nulled when the import ends; previews expire after 24 h (D-031). | Rows rejected at apply time can't be downloaded as CSV after the import ends. |
-| **Secrets:** env only (`DATABASE_URL`, `JWT_SECRET` ≥ 32 chars, `SMTP_*`, `SEED_ADMIN_*`), validated at startup. `.env.example` is committed and `.env` is git-ignored. | |
+| **Secrets:** env only (`DATABASE_URL`, `JWT_SECRET` ≥ 32 chars, `SMTP_*` including `SMTP_USER`/`SMTP_PASS`, `SEED_ADMIN_*`), validated at startup. `.env.example` is committed and `.env` is git-ignored. | |
 
 ## 7. Performance decisions
 | Decision | Trade-off |
@@ -465,8 +465,10 @@ APP_TIMEZONE=Asia/Kolkata                   # defines "today" for all date rules
 COOKIE_SECURE=false
 CORS_ORIGIN=http://localhost:5173
 APP_BASE_URL=http://localhost:5173          # SPA origin; email links point to $APP_BASE_URL/exports/:id
-SMTP_HOST=localhost
-SMTP_PORT=1025                              # Mailpit
+SMTP_HOST=sandbox.smtp.mailtrap.io          # Mailtrap Sandbox test inbox (or Mailpit: localhost:1025, no auth)
+SMTP_PORT=2525
+SMTP_USER=                                  # optional — empty means no SMTP auth
+SMTP_PASS=
 SMTP_FROM="Salary Management <no-reply@acme.local>"
 SEED_ADMIN_EMAIL=hr@acme.local
 SEED_ADMIN_PASSWORD=change-me

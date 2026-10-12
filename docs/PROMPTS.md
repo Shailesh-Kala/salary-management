@@ -301,3 +301,23 @@ next
 ```
 
 **Response:** TDD: committed failing tests (health + request ID echo/generation/unsafe-ID replacement, 404 error shape, AppError mapping, generic 500 without message/stack, env validation), then `config.ts` (zod), `AppError`, central `errorHandler`, `createApp({ logger })` with pino-http request IDs, `GET /health`, and `main.ts` loading `.env` via Node's `--env-file-if-exists`. 10 tests pass.
+
+---
+
+## 15. Phase 3 — Between tasks 3 and 4 (question)
+
+```text
+what is TEST_DATABASE_URL why do we need?
+```
+
+**Response:** Explained it is a separate database used only by integration tests (tests truncate tables, need exact known data, must run on real Postgres per D-027, mirrors CI). Promised a guard in Task 4 that refuses to run tests if it is missing or equals `DATABASE_URL`.
+
+---
+
+## 16. Phase 3 — Between tasks 3 and 4 (SMTP config)
+
+```text
+I am using mailtrap Sandbox test email cred can we add email username and password and port on the .env example
+```
+
+**Response:** Added `SMTP_USER` / `SMTP_PASS` and Mailtrap Sandbox host/port (`sandbox.smtp.mailtrap.io:2525`) to `.env.example`, with Mailpit as a no-auth alternative; SMTP auth is optional. Updated ARCHITECTURE and REQUIREMENTS to match.

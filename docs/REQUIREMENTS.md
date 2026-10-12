@@ -228,7 +228,7 @@ A row that changes both audited and profile fields writes the profile fields **a
   - **Cleanup:** deleting an already-deleted file is a no-op.
 - **Delayed jobs:** a job can be scheduled to run at a given time. This is used to delete export files at link expiry.
 - **Job status page:** HR sees their jobs with type, status, progress (rows processed for imports), created and finished times, and links to the report or file. The UI polls for status while a job is running.
-- **Email:** sent over SMTP using settings from environment variables. For local runs, a local mail catcher (e.g. Mailpit) is used, so no real email leaves the machine.
+- **Email:** sent over SMTP using settings from environment variables (host, port, and optional username/password). For local runs, a test inbox such as **Mailtrap Sandbox** or Mailpit captures every email, so nothing reaches a real mailbox.
 
 ## 5. Out of scope (with reasoning)
 | Item | Why it's out |
@@ -366,7 +366,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 7. The existing Excel data can be mapped to the CSV template by HR before import.
 8. All seed and demo data is synthetic. No real personal data is used.
 9. The app runs locally. The reviewer provides PostgreSQL connection details in `.env`.
-10. SMTP settings come from `.env`. For local runs a mail catcher (e.g. Mailpit) receives the emails.
+10. SMTP settings (host, port, username, password) come from `.env`. For local runs a test inbox (Mailtrap Sandbox or Mailpit) receives the emails.
 11. Every HR user has a valid work email on their account, which is used for export emails.
 12. HR works in one time zone (`APP_TIMEZONE`). Employees in other countries have status and effective dates judged by that calendar day, which is an accepted simplification.
 
