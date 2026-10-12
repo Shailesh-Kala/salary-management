@@ -112,7 +112,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR can add employees and fix profile details.*
 
 ## Slice E: Pay and title changes (including relocation)
-16. [ ] **Change events and history API:** `POST` and `GET /api/employees/:id/changes`, including `relocation`.
+16. [x] **Change events and history API:** `POST` and `GET /api/employees/:id/changes`, including `relocation`.
     - Unit tests:
       - the diff contains only changed fields
       - a no-op is rejected
@@ -127,6 +127,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - history is newest first
       - the DB trigger blocks UPDATE and DELETE on `employee_changes`
       - a relocation writes one change with the old → new country and salary (**T14**, API part)
+    - Also done here: "an exited employee only accepts `correction` changes" (it is part of change-event validation; moved from Task 18). The rules live in a pure `planChange()` unit-tested without a DB.
 17. [ ] **Change dialog + history timeline UI:** change type, effective date, note and fields. Choosing *relocation* shows the country field and makes the salary fields required, labelled in the new currency.
     - RTL tests: submit is disabled until the note is valid; relocation without a salary can't be submitted; the request includes `version`.
 
@@ -137,7 +138,6 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     - Unit tests:
       - `hire ≤ notice ≤ last working day`
       - withdraw only while on notice
-      - an exited employee only accepts `correction` changes
       - note required
     - Integration tests: endpoints write a change entry; the `status` filter in the list reflects exits.
 19. [ ] **Exit and withdraw dialogs:** status and last working day on the detail page, plus the status filter in the list.

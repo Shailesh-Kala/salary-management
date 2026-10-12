@@ -468,3 +468,13 @@ next
 ```
 
 **Response:** TDD: failing RTL tests (create posts trimmed-blank-free body and opens the new employee; server 400 and 409 shown on their fields; detail shows profile and pay in local currency; profile edit sends the loaded version; version conflict explains and reloads; 404 message; list row opens detail; "Add employee" link), with `mockApi` handlers now receiving the request body. Then the create page, detail page with edit-profile dialog, shared `StatusChip`, `useFilterOptions`, `fieldErrors`, routes and row navigation. Found and fixed flaky web tests (timeouts under parallel jsdom load): `userEvent` without per-key delay, 3 s async waits, 15 s test timeout — 12/12 clean runs. 201 tests pass. Slice D done.
+
+---
+
+## 31. Phase 3 — Task 16: Change events and history API
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests for a pure `planChange()` (only changed fields recorded, equal amounts in different formats unchanged, no-op rejected, promotion as one event and snapshot, effective date not future and not before the latest change, relocation rules and new-currency snapshot, hire-date correction bounds, exited employees correction-only) and the change schema; integration tests for apply + record, stale version 409, relocation keeping the old currency in history (T14 API), 400 field errors, 404s, atomic rollback, and history newest-first with author and snapshot. Then `planChange`, `changeEventSchema`, row lock (`FOR UPDATE`), whitelisted dynamic SET, date bounds, history query, and routes. 232 tests pass.
