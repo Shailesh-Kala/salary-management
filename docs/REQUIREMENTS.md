@@ -35,7 +35,8 @@ Replace ACME's Excel-based salary tracking with a web application in which the H
 ### 4.1 F1: Authentication
 - Email and password login for HR users. Accounts are created by a seed script or CLI; there is no self-signup.
 - Every HR user has the same permissions (a single role).
-- Session ends on logout or expiry.
+- Session ends on logout, expiry, or when the account is **disabled**.
+- **Revocation:** an HR user can be disabled with a CLI command (`npm run user:disable -- <email>`). Their session stops working on the **next request**, not after 8 hours. Logout also revokes the session on the server, not just in the browser.
 - Details are in §7.
 
 ### 4.2 F2: Employee and salary management
@@ -56,6 +57,9 @@ Replace ACME's Excel-based salary tracking with a web application in which the H
   - country must be supported, and it changes only through `relocation`, which requires the new base salary and allowances
   - email and employee code must be unique
   - effective date must be ≤ today and ≥ the employee's latest change effective date, so history stays in order
+- **Fixing a wrong hire date:**
+  - The hire date can be changed only by a `correction` change event (note required). It is audited like any other change (old → new hire date); the original `hire` history entry is kept unchanged.
+  - The new hire date must be ≤ the effective date of the employee's first non-hire change and ≤ the notice date (if any), so no recorded change falls before the hire.
   - note must be 5–1000 characters
 
 ### 4.3 F3: Employee lifecycle (resignation and notice period)
@@ -76,7 +80,11 @@ The **notice period (days)** is shown as last working day − notice date.
 
 **Withdrawing a resignation:** while the employee is `on_notice`, HR can withdraw it (note required), which returns them to `active`.
 
-**Validation:** hire date ≤ notice date ≤ last working day. Exited employees are read-only except for corrections, which need a note.
+**Validation:** hire date ≤ notice date ≤ last working day.
+
+**Exited employees:**
+- Audited changes (salary, allowances, title, department, country, hire date) are allowed **only as `correction`** change events.
+- Profile fixes (name, email), which aren't audited, are still allowed. The same rules apply to imports (§4.8).
 
 **In other features:**
 - `active` and `on_notice` employees count as **current headcount** in insights, because both are still on payroll.
@@ -145,7 +153,7 @@ We deliberately don't compare a job title *across* countries in local currency, 
      - counts: **total, valid (to create / to update / unchanged), rejected**
      - a table of rejected rows with row number, employee code and **reason(s)**
      - a **"Download rejected rows" CSV**: the original columns plus an `error` column. It is available **while the import is in preview or applying**; see the data-clearing rule in step 10.
-   - Rows that are identical to the current data are counted as *unchanged* and will create no history entry.
+   - Each row is classified by the **row rules** below.
 5. **Decision:** HR chooses **"Import valid rows"** or **"Cancel"**.
    - **Cancel:** the job becomes `cancelled`. **No employee, history or audit data is written.**
    - **Preview expiry:** a preview that is neither confirmed nor cancelled **expires 24 hours** after it became ready.
@@ -155,8 +163,12 @@ We deliberately don't compare a job title *across* countries in local currency, 
    - **Import valid rows:** the job is queued for the apply step.
 6. **Apply (background):**
    - Each valid row is upserted by `employee_code` in **its own transaction**, so a failure in one row never rolls back the others.
+   - **Error isolation:**
+     - **Row problem:** if a row throws an unexpected error, for example a constraint the validator didn't anticipate or a bug in one code path, that row's transaction is rolled back. The row is marked **rejected** with *"unexpected error — row not imported (ref <job id>/<row number>)"*, the error is logged without row data, and the job **continues with the next row**.
+     - **Infrastructure problem:** only these stop the job, which is then retried, skipping finished rows (D-020). Examples: lost DB connection, DB shutting down, out of resources, a deadlock or serialisation failure, or a process crash.
+     - The same rule applies to the validation step.
    - Each row is **re-validated at apply time**, because data may have changed since the preview. A row that now fails is moved to rejected with its reason.
-   - Every salary, title, department, country (relocation) or lifecycle change creates a change-history entry with `source = import`, using the import's change type, effective date and note.
+   - History entries follow the row rules below. All have `source = import` and the import's note.
 7. **Final report:** totals **created, updated, unchanged, rejected**, and the rejected rows with row number, employee code and reasons. HR downloads the rejected-rows CSV during the preview, fixes the rows and **re-uploads just that file**. This is safe because import upserts by employee code.
 8. **Import history:** a list of past imports with status, who uploaded each one, when, and its counts.
 9. **Concurrency: one active import at a time, across all HR users.**
@@ -168,9 +180,21 @@ We deliberately don't compare a job title *across* countries in local currency, 
 10. **Data clearing:** when an import ends (`completed`, `cancelled`, `failed` or `expired`), the uploaded file and every row's **raw values are deleted**. Only row number, employee code, outcome and errors are kept, so no salary data stays in the import tables.
     - Rows rejected at **apply** time (re-validation) are reported with their reasons but can't be downloaded as CSV afterwards. HR fixes them from their own file.
 
-**Relocation by import:** a row whose country differs from the employee's current country is applied as a `relocation` change.
-- It is accepted only if the row also carries the new salary, i.e. its base salary differs from the current one. A row that changes country with the old salary unchanged is rejected with *"relocation requires the new salary in the new country's currency"*.
-- Lifecycle changes (resignations) are done in the UI, not by import.
+**Row rules** (applied identically at preview and at apply):
+| Row situation | Result | Counted as | History entry |
+|---|---|---|---|
+| `employee_code` not found | Employee created | **created** | One **`hire`** change, effective on the row's **hire date** (not the import's change type or date), with the import's note |
+| Existing employee, nothing differs | Nothing written | **unchanged** | None |
+| Existing employee, only name and/or email differ | Profile updated | **updated** | None (name and email aren't audited, same as the UI) |
+| Existing employee, salary, allowances, title or department differ | Employee updated | **updated** | One change with the **import's change type and effective date**, containing only the audited fields that changed |
+| Country differs **and** base salary differs | Relocation | **updated** | One **`relocation`** change (any title, department or allowance changes in the same row are included) |
+| Country differs, base salary unchanged | — | **rejected** | *"relocation requires the new salary in the new country's currency"* |
+| Hire date differs, import change type is `correction` | Hire date corrected (same date rules as the UI) | **updated** | Included in the import's `correction` change |
+| Hire date differs, import change type is not `correction` | — | **rejected** | *"hire date can only be changed by a correction import"* |
+| Employee has **exited** and any audited field differs, import change type is not `correction` | — | **rejected** | *"employee has exited — only corrections are allowed"* (name/email-only changes are still applied) |
+| Effective date is before the employee's latest change | — | **rejected** | *"effective date is before this employee's latest change"* |
+
+A row that changes both audited and profile fields writes the profile fields **and** one history entry. Lifecycle changes (resignations) are done in the UI, not by import.
 
 **Export (CSV, Excel, PDF):**
 - HR exports the **current filtered list** (same filters, sort and reporting currency as the UI) and picks the format:
@@ -280,13 +304,15 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 
 **Exchange-rate history** (append-only): `currency_code`, `old_inr_per_unit`, `new_inr_per_unit`, `old_as_of`, `new_as_of`, `changed_by`, `changed_at`.
 
-**HR user:** `id`, `email` (unique), `name`, `password_hash`, `created_at`.
+**HR user:** `id`, `email` (unique), `name`, `password_hash`, `token_version` (incremented on logout and disable), `disabled_at` (nullable), `created_at`.
 
 **Deliberately not stored (data minimisation):** date of birth, national ID, home address, bank details, gender.
 
 ## 7. Authentication and data privacy
 - Passwords are hashed with a slow, salted algorithm (bcrypt or argon2) and never logged or returned.
 - **Session:** a short-lived signed token (8 h) in an **httpOnly, SameSite=Strict** cookie; `Secure` is on wherever HTTPS is used. Nothing is stored in `localStorage`.
+- **Every request re-checks the user:** the token carries the user's `token_version`, and each request looks the user up by ID. It is rejected with `401` if the user is disabled or the version no longer matches.
+  - **Logout** and **disable** both increment `token_version`, so every existing session for that user ends at once, on all devices.
 - Every endpoint except `/health` and `/auth/login` requires authentication.
 - **Login rate limit:** 5 attempts per minute per IP and email. Failed logins return a generic message.
 - **Logs:** request IDs, routes, status codes and timings only. No salary values, names, emails, change notes or request bodies.
@@ -299,6 +325,13 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
   - The link expires in 24 h and the file is deleted at expiry.
   - Every download and every refused attempt is audited.
   - Email bodies contain no salary data.
+
+## 7a. Dates and time zone
+- **"Today"** is the calendar date in the organisation's time zone, configured as `APP_TIMEZONE` (default **`Asia/Kolkata`**).
+  - It drives: effective-date limits, status (`on_notice` / `exited`), the current month for slips, and the "recent changes" default range.
+  - **Example:** at 01:30 IST on 1 April, "today" is 1 April, even though in UTC it is still 31 March.
+- **Instants** (`changed_at`, `expires_at`, job times) are stored as UTC `timestamptz`, and expiry is compared as instants. "24 hours" is always exactly 24 hours.
+- **Calendar dates** (hire date, effective date, notice date, last working day) are stored as `DATE` and handled **as `YYYY-MM-DD` strings** end to end. The DB driver is configured not to turn them into JavaScript `Date` objects, which would shift them by the server's time-zone offset.
 
 ## 8. Non-functional targets
 | Area | Target |
@@ -335,6 +368,7 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 9. The app runs locally. The reviewer provides PostgreSQL connection details in `.env`.
 10. SMTP settings come from `.env`. For local runs a mail catcher (e.g. Mailpit) receives the emails.
 11. Every HR user has a valid work email on their account, which is used for export emails.
+12. HR works in one time zone (`APP_TIMEZONE`). Employees in other countries have status and effective dates judged by that calendar day, which is an accepted simplification.
 
 ## 10. Resolved questions
 | # | Question | Decision |
@@ -369,6 +403,10 @@ These are written first (TDD) in Phase 3 and must stay green.
 | T12 | **Preview expiry:** with the clock 24 h past the preview becoming ready, the expire job sets `expired`. Confirm returns `410` (also before the job runs), nothing is written, and a new upload is accepted. Running the job again is a no-op. |
 | T13 | **Raw data cleared:** after an import is completed, cancelled, failed or expired, the stored file and every `import_rows.raw_row` are NULL, while row number, employee code, outcome and errors remain. |
 | T14 | **Relocation:** a relocation without new salary and allowances is rejected. A valid one writes one change with the new country and currency. A slip for a month before the relocation still uses the old currency. An import row that changes country with an unchanged salary is rejected. |
+| T15 | **Row error isolation:** in an apply where row 3 throws an unexpected (non-infrastructure) error, row 3 is rejected with the "unexpected error" reason, every other valid row is applied, and the import completes. An injected connection error instead makes the job retry, and each row is still applied once. |
+| T16 | **Session revocation:** after an HR user is disabled, their existing cookie gets `401` on the next request, and logging in again fails with the generic message. After logout, the old token (replayed) gets `401`. |
+| T17 | **Dates and time zone:** with `APP_TIMEZONE=Asia/Kolkata` and the clock at `2026-03-31T19:00:00Z`, "today" is `2026-04-01`. A `DATE` read from the DB is the identical `YYYY-MM-DD` string, even when the test process runs with `TZ=America/Los_Angeles`. |
+| T18 | **Import row rules:** a new employee gets a `hire` change on its hire date; a name/email-only change counts as updated with no history; a hire-date change is rejected unless the import is a `correction`; an audited change to an exited employee is rejected unless it is a `correction`. |
 
 ## 12. Open questions
 None at the moment.
