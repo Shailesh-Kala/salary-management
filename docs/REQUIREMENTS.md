@@ -41,15 +41,19 @@ Replace ACME's Excel-based salary tracking with a web application in which the H
 ### 4.2 F2: Employee and salary management
 - **List:** server-side pagination (default 25 rows, max 100), sorting, filters (country, department, job title, status) and free-text search (name, employee code, email).
 - **Create / view / edit** an employee, including their salary.
-- **Changes that need a note:** changing salary, allowances, job title or department is a *change event*. It requires:
-  - a **change type**: `annual_review`, `promotion`, `market_adjustment`, `correction` or `other`
+- **Changes that need a note:** changing salary, allowances, job title, department or country is a *change event*. It requires:
+  - a **change type**: `annual_review`, `promotion`, `market_adjustment`, `relocation`, `correction` or `other`
   - an **effective date**
   - a **note**, required free text, e.g. appreciation or feedback such as *"Led the payments migration, consistently exceeds expectations"*
+- **Relocation:** country can't be edited directly; it changes only through a `relocation` change event.
+  - Because currency follows country, a relocation **must include the new base salary and allowances in the new country's currency** in the same change. A relocation without them is rejected.
+  - Job title and department may change in the same event.
+  - History entries and slips for months before the relocation keep the **old country and currency**.
 - **Back-dated changes** are allowed (effective date ≤ today) and need the same required note. Future-dated changes are not allowed.
 - **Concurrent edits** are rejected if someone else edited the record in the meantime (optimistic locking), so two HR users can't silently overwrite each other.
 - **Validation:**
   - salary amounts must be > 0 with at most 2 decimals
-  - country must be supported
+  - country must be supported, and it changes only through `relocation`, which requires the new base salary and allowances
   - email and employee code must be unique
   - effective date must be ≤ today and ≥ the employee's latest change effective date, so history stays in order
   - note must be 5–1000 characters
@@ -97,13 +101,14 @@ We deliberately don't compare a job title *across* countries in local currency, 
 ### 4.5 F5: Multi-currency comparison
 - Each employee is paid in the **local currency of their country** (one country per employee). Salaries are stored in that currency and are **never converted on write**.
 - An **exchange-rate table** holds one rate per currency, expressed as **INR per 1 unit** (e.g. USD = 83.20, EUR = 90.10, INR = 1), with an "as of" date and who last updated it. HR can edit the rates. The seed script loads a fixed snapshot.
+- **Rate changes are audited:** every update appends an immutable rate-history entry (currency, old → new rate, old → new "as of" date, who, when). The rates page shows this history.
 - Converting between any two currencies goes through INR: `amount × rate[from] ÷ rate[to]`. Results are rounded to 2 decimals only at the end.
 - **Reporting currency** is selectable in insights, the list and exports. The default is **INR**.
 - Insights (Q1–Q3, Q7) and the employee list's "Annual salary (reporting currency)" column use the converted value. **Sorting the list by salary sorts by the converted value**, because sorting raw amounts in mixed currencies is meaningless.
 - Every converted figure in the UI shows the rates' "as of" date, so HR knows it is a snapshot.
 
 ### 4.6 F6: Monthly salary slip (gross pay only)
-- HR picks an employee and a month (`YYYY-MM`). The system builds the slip on demand from the salary and job title **in effect on the last day of that month** (taken from the change history).
+- HR picks an employee and a month (`YYYY-MM`). The system builds the slip on demand from the salary, allowances, **currency, country** and job title **in effect on the last day of that month** (taken from the change history). A relocated employee's earlier slips therefore stay in the old currency.
 - **Contents:** employee code, name, job title, department, country, month, currency, status (and last working day, if on notice or exited).
   - **Earnings (monthly):** base salary (annual base ÷ 12), allowances (annual allowances ÷ 12), **gross pay**.
   - **No deductions or net pay.** Real deductions depend on country tax brackets and personal factors. A flat estimate would be misleading, so the slip states *"Gross pay only — statutory deductions are not calculated."*
@@ -111,7 +116,7 @@ We deliberately don't compare a job title *across* countries in local currency, 
 - Output is a printable HTML view plus a **Download PDF** button. Slips are not stored, because they can always be rebuilt from history.
 
 ### 4.7 F7: Change history and audit
-- Every change to **base salary, allowances, job title, department, or lifecycle (status / exit dates)**, whether from the UI or an import, appends an immutable history entry with:
+- Every change to **base salary, allowances, job title, department, country (relocation), or lifecycle (status / exit dates)**, whether from the UI or an import, appends an immutable history entry with:
   - **who, when**
   - **field(s) changed with old → new values**
   - **effective date, change type, note**
@@ -139,24 +144,33 @@ We deliberately don't compare a job title *across* countries in local currency, 
    - The job then waits in `awaiting_confirmation` and shows a **preview**:
      - counts: **total, valid (to create / to update / unchanged), rejected**
      - a table of rejected rows with row number, employee code and **reason(s)**
-     - a **"Download rejected rows" CSV**: the original columns plus an `error` column
+     - a **"Download rejected rows" CSV**: the original columns plus an `error` column. It is available **while the import is in preview or applying**; see the data-clearing rule in step 10.
    - Rows that are identical to the current data are counted as *unchanged* and will create no history entry.
 5. **Decision:** HR chooses **"Import valid rows"** or **"Cancel"**.
-   - **Cancel:** the job becomes `cancelled`. **No employee, history or audit data is written.** The staged rows are kept only for the report.
+   - **Cancel:** the job becomes `cancelled`. **No employee, history or audit data is written.**
+   - **Preview expiry:** a preview that is neither confirmed nor cancelled **expires 24 hours** after it became ready.
+     - The import becomes `expired`, nothing is written, and the single-import lock is released.
+     - A cleanup job is scheduled for the expiry time when the preview becomes ready.
+     - Confirming after expiry is refused (`410`) even if the cleanup job hasn't run yet.
    - **Import valid rows:** the job is queued for the apply step.
 6. **Apply (background):**
    - Each valid row is upserted by `employee_code` in **its own transaction**, so a failure in one row never rolls back the others.
    - Each row is **re-validated at apply time**, because data may have changed since the preview. A row that now fails is moved to rejected with its reason.
-   - Every salary, title, department or lifecycle change creates a change-history entry with `source = import`, using the import's change type, effective date and note.
-7. **Final report:** totals **created, updated, unchanged, rejected**, plus the rejected-rows CSV. HR fixes the rejected rows and **re-uploads just that file**. This is safe because import upserts by employee code.
+   - Every salary, title, department, country (relocation) or lifecycle change creates a change-history entry with `source = import`, using the import's change type, effective date and note.
+7. **Final report:** totals **created, updated, unchanged, rejected**, and the rejected rows with row number, employee code and reasons. HR downloads the rejected-rows CSV during the preview, fixes the rows and **re-uploads just that file**. This is safe because import upserts by employee code.
 8. **Import history:** a list of past imports with status, who uploaded each one, when, and its counts.
 9. **Concurrency: one active import at a time, across all HR users.**
    - A new upload is refused while another import is queued, validating, waiting in preview, or applying.
    - This is enforced by a database constraint, so two uploads at the same moment can't both get through.
    - This means a preview can never be built on data that another import is about to change, and two imports can never race on the same employees.
    - Any HR user can open the pending import and **cancel** it, so a forgotten preview can't block imports indefinitely.
+   - An unattended preview also expires on its own after 24 hours (step 5).
+10. **Data clearing:** when an import ends (`completed`, `cancelled`, `failed` or `expired`), the uploaded file and every row's **raw values are deleted**. Only row number, employee code, outcome and errors are kept, so no salary data stays in the import tables.
+    - Rows rejected at **apply** time (re-validation) are reported with their reasons but can't be downloaded as CSV afterwards. HR fixes them from their own file.
 
-Lifecycle changes (resignations) are done in the UI, not by import.
+**Relocation by import:** a row whose country differs from the employee's current country is applied as a `relocation` change.
+- It is accepted only if the row also carries the new salary, i.e. its base salary differs from the current one. A row that changes country with the old salary unchanged is rejected with *"relocation requires the new salary in the new country's currency"*.
+- Lifecycle changes (resignations) are done in the UI, not by import.
 
 **Export (CSV, Excel, PDF):**
 - HR exports the **current filtered list** (same filters, sort and reporting currency as the UI) and picks the format:
@@ -168,7 +182,10 @@ Lifecycle changes (resignations) are done in the UI, not by import.
 - **PDF size rule:**
   - **≤ 1,000 rows:** downloaded directly.
   - **> 1,000 rows:** the UI tells HR the file is too large to download directly and that it will be **emailed to their own account address**. **There is no recipient field**: the email always goes to the logged-in user's address, so it can't be mistyped or sent elsewhere. The API returns an **export job ID** (`202 Accepted`), and the PDF is generated in the background queue (F9).
-  - **Email delivery:** the email contains a **download link, not the file as an attachment**, and no salary data in the body. The link:
+  - **Email delivery:** the email contains a **link to the export's page in the app** (`/exports/:id`), not the file as an attachment and not a direct API URL, and no salary data in the body.
+    - The page loads, checks the session (redirecting to login and back if needed), then downloads the file with `fetch`.
+    - This is needed because the session cookie is `SameSite=Strict`: a direct API link clicked from Gmail or Outlook web would arrive without the cookie and fail with `401`. A request made by the app's own page is same-site, so the cookie is sent.
+  - The download:
     - requires an HR login, and **works only for the user who requested the export**. Anyone else gets `403`, even another HR user.
     - **expires after 24 hours**, after which it returns `410 Gone`.
   - **File deletion:** when the link expires, the generated file is **deleted**. A cleanup job is scheduled for the expiry time when the file is created.
@@ -178,7 +195,7 @@ Lifecycle changes (resignations) are done in the UI, not by import.
 
 ### 4.9 F9: Background jobs
 - Import and large-export jobs run in a **persistent queue stored in PostgreSQL**, so no extra infrastructure (Redis, etc.) is needed and jobs survive an API restart.
-- **Job lifecycle:** `queued → running → completed | failed`. Imports add two states: `awaiting_confirmation` (the preview is ready) and `cancelled`.
+- **Job lifecycle:** `queued → running → completed | failed`. Imports have their own states on top of this: `validating`, `awaiting_confirmation` (the preview is ready), `applying`, `completed`, `cancelled`, `expired`, `failed`.
   - A job interrupted by a crash or restart is retried automatically, up to 3 attempts.
 - **Retries never repeat finished work:**
   - **Import validation:** writes nothing to employee data, so re-running it simply rebuilds the preview rows (replaced per row number).
@@ -237,8 +254,8 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 |---|---|
 | id, employee_id | |
 | changes | changed fields with old → new values (salary, allowances, job title, department, lifecycle) |
-| base_salary, allowances, currency_code, job_title | snapshot of values in effect after this change, used for slip lookups |
-| change_type | `hire`, `annual_review`, `promotion`, `market_adjustment`, `correction`, `exit`, `exit_withdrawn`, `other` |
+| base_salary, allowances, currency_code, country_code, job_title, department | snapshot of values in effect after this change, used for slip lookups |
+| change_type | `hire`, `annual_review`, `promotion`, `market_adjustment`, `relocation`, `correction`, `exit`, `exit_withdrawn`, `other` |
 | effective_date | ≤ today |
 | note | required (appreciation, feedback or reason) |
 | source | `ui` \| `import` \| `seed` |
@@ -249,15 +266,19 @@ Money is stored as `NUMERIC(14,2)` (never floating point) and amounts are **annu
 
 **Export download log:** `export_id`, `user_id`, `outcome` (`downloaded` \| `forbidden` \| `expired`), `at`.
 
-**Background job:** `id`, `type` (`import_validate` \| `import_apply` \| `export_pdf` \| `export_cleanup`), `status` (`queued` \| `running` \| `awaiting_confirmation` \| `completed` \| `cancelled` \| `failed`), `run_after`, `attempts`, `payload` (import file and form fields, or export filters), `progress`, `result` (import counts / file reference), `error`, `created_by`, `created_at`, `started_at`, `finished_at`.
+**Import:** `id`, `status` (`validating` \| `awaiting_confirmation` \| `applying` \| `completed` \| `cancelled` \| `expired` \| `failed`), `uploaded_by`, change type, effective date and note, the uploaded file (deleted when the import ends), counts, `preview_expires_at`, timestamps.
 
-**Import row:** `job_id`, `row_number`, `employee_code`, `outcome` (`valid` \| `rejected` at preview; `created` \| `updated` \| `unchanged` \| `rejected` after apply, written in the same transaction as the row's changes), `errors`, `raw_row` (the original values, for the rejected-rows CSV), `applied_at`.
+**Background job:** `id`, `type` (`import_validate` \| `import_apply` \| `import_expire` \| `export_pdf` \| `export_cleanup`), `status` (`queued` \| `running` \| `completed` \| `failed`), `run_after`, `attempts`, `payload`, `last_error`, timestamps.
+
+**Import row:** `job_id`, `row_number`, `employee_code`, `outcome` (`valid` \| `rejected` at preview; `created` \| `updated` \| `unchanged` \| `rejected` after apply, written in the same transaction as the row's changes), `errors`, `raw_row` (the original values for the rejected-rows CSV; **deleted when the import ends**), `applied_at`.
 
 **Export file:** `job_id`, `requested_by` (only this user may download), file content (deleted at expiry), `expires_at` (24 h), `email_sent_at` (guards against re-sending on retry), `deleted_at`.
 
 **Country** (reference data, seeded): `code`, `name`, `currency_code` (ISO 4217).
 
 **Exchange rate:** `currency_code`, `inr_per_unit`, `as_of`, `updated_by`.
+
+**Exchange-rate history** (append-only): `currency_code`, `old_inr_per_unit`, `new_inr_per_unit`, `old_as_of`, `new_as_of`, `changed_by`, `changed_at`.
 
 **HR user:** `id`, `email` (unique), `name`, `password_hash`, `created_at`.
 
@@ -344,6 +365,10 @@ These are written first (TDD) in Phase 3 and must stay green.
 | T8 | **Import retry skips finished rows:** an apply job that fails part-way (failure injected after N rows) and is then retried applies every row exactly once. Employee values are correct, each changed row has exactly one history entry, and rows done before the failure are not re-processed. |
 | T9 | **Export retry doesn't re-send email:** an export job that fails after the email is sent and is then retried sends the email exactly once (fake mailer call count = 1). A job that fails *before* sending sends it exactly once on retry. |
 | T10 | **One active import:** uploading while another import is queued, validating, in preview or applying returns `409` and queues nothing. After that import is cancelled or finished, a new upload is accepted. |
+| T11 | **Email link works from a webmail client:** the email links to the app page `/exports/:id` (not `/api/...`). That page fetches the file with the session cookie and saves it. Without a session it redirects to login and returns to `/exports/:id` afterwards (relative paths only, no open redirect). It shows clear messages for `403` and `410`. |
+| T12 | **Preview expiry:** with the clock 24 h past the preview becoming ready, the expire job sets `expired`. Confirm returns `410` (also before the job runs), nothing is written, and a new upload is accepted. Running the job again is a no-op. |
+| T13 | **Raw data cleared:** after an import is completed, cancelled, failed or expired, the stored file and every `import_rows.raw_row` are NULL, while row number, employee code, outcome and errors remain. |
+| T14 | **Relocation:** a relocation without new salary and allowances is rejected. A valid one writes one change with the new country and currency. A slip for a month before the relocation still uses the old currency. An import row that changes country with an unchanged salary is rejected. |
 
 ## 12. Open questions
 None at the moment.
