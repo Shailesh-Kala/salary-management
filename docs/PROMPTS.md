@@ -241,3 +241,23 @@ Small things:
 ```
 
 **Response:** Email links now open the SPA page `/exports/:id`, which downloads via same-site `fetch` (T11); previews expire after 24 h via `import_expire` job + confirm-time check, and file/raw rows are nulled when an import ends (T12, T13); added `relocation` change type requiring new salary, with country/currency in snapshots and import support (T14); fixed CSRF note; added `exchange_rate_changes`; tsconfig flags listed in ARCHITECTURE and Task 1. Re-ordered PLAN.md into 13 usable slices (41 tasks). Logged D-031–D-035.
+
+---
+
+## 10. Phase 2 — Design (full docs review)
+
+```text
+I went through REQUIREMENTS, DECISIONS, ARCHITECTURE and PLAN. I found a few things I want fixed:
+
+- Some import rules are not clear:
+   - When an import creates a new employee, the history entry should be a "hire" with the hire date, not the import's change type and date.
+   - What happens if a row changes name, email or hire date for an existing employee? Is it allowed, and does it count as "updated" or "unchanged"? Also, there's no way to fix a wrong hire date anywhere right now.
+   - Import updates to exited employees should only be allowed as corrections, same as in the UI.
+
+- One broken row shouldn't fail the whole import. If one row throws an unexpected error, mark that row as rejected and keep going. Only retry the whole job for real problems like a crash or lost DB connection.
+
+- If we remove an HR user, they still have access for up to 8 hours because the session can't be cancelled. Add a disabled flag (or token version) that's checked on each request.
+- Please decide which timezone "today" uses, and make the pg driver return DATE columns as strings, to avoid off-by-one-day bugs.
+```
+
+**Response:** Added an import row-rules table (new employee → `hire` on hire date; name/email → updated without history; hire date and exited-employee changes only via `correction`) and hire-date correction in the UI (D-036); per-row error isolation with an infrastructure-error classifier (D-037); revocable sessions via `token_version` + `disabled_at` checked per request and a user CLI (D-038); `APP_TIMEZONE=Asia/Kolkata` for "today", DATE as strings, tests under `TZ=America/Los_Angeles` (D-039). New acceptance tests T15–T18 placed in PLAN tasks 4, 6, 9, 34, 35.

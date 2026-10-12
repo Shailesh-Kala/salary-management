@@ -87,6 +87,7 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Reviewer must run it locally; README setup steps must be exact.
 
 ## D-014 — Employee lifecycle status derived from dates
+> **See D-039** — "today" is defined in `APP_TIMEZONE`.
 - **What:** Store `exit_type`, `notice_date`, `last_working_day`; status (`active` / `on_notice` / `exited`) is computed from them and today's date.
 - **Alternatives:** Stored status column updated by a scheduled job; HR manually marks "exited".
 - **Why:** Status is always computed from the dates, so it can never drift from them — there is no stored status to keep in sync and nothing for HR to forget to update.
@@ -128,6 +129,7 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Slower than batched writes (10k transactions — target < 60 s); data can change between preview and apply, handled by re-validating at apply time; staged rows are stored until the import finishes or is cancelled.
 
 ## D-020 — Idempotent job retries
+> **Amended by D-037** — only infrastructure errors fail the job; unexpected row errors reject just that row.
 - **What:** Import apply saves each row's outcome in the same transaction as that row's employee and history changes; on retry, rows with a final outcome are skipped. Import validation only rebuilds preview rows, so re-running it is harmless. Export jobs skip rebuilding an existing file and mark `email_sent_at` before sending (cleared if the send fails with an error), so a retry never re-sends. Cleanup is a no-op on an already-deleted file.
 - **Alternatives:** Rely on upsert by `employee_code` alone; mark the email sent only after a successful send (at-least-once).
 - **Why:** Upsert alone makes the employee row correct but still writes a second history entry and re-runs work; with one transaction per row a crash always leaves a partial import, so the row outcome must be the single source of truth for "done". At-least-once email could message the user twice after a crash between send and mark.
@@ -158,6 +160,7 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Row types are written by hand and not checked against the schema at compile time — covered by integration tests on every repository.
 
 ## D-025 — scrypt passwords and a JWT session cookie
+> **Amended by D-038** — sessions are now revocable (token version + disabled flag checked per request).
 - **What:** Passwords hashed with Node's built-in `crypto.scrypt` (random salt, `timingSafeEqual`); session is an 8 h HS256 JWT (`jose`) in an httpOnly, SameSite=Strict cookie.
 - **Alternatives:** argon2/bcrypt native modules; server-side sessions table; token in `localStorage`.
 - **Why:** scrypt is a memory-hard KDF with zero dependencies; cookie + SameSite=Strict blocks XSS token theft and CSRF; stateless tokens need no session store.
@@ -222,3 +225,27 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** All APIs first, all UI last.
 - **Why:** Each slice can be demoed and reviewed end-to-end, and UI feedback can change the API early instead of at the end.
 - **Trade-off:** Some UI is first built with a temporary behaviour (e.g. the PDF "too large" message before email export exists) and revisited in a later slice.
+
+## D-036 — Explicit import row rules; hire-date corrections; exited employees correction-only
+- **What:** One pure row-rules function, used by both preview and apply, decides each row: new code → created with a `hire` change effective on the row's hire date; name/email-only differences → updated, no history (same as UI); audited field differences → one change with the import's type/date; country + salary → `relocation`; hire-date change only in a `correction` import; audited changes to exited employees only in a `correction` import. In the UI, hire date becomes correctable through a `correction` change event (≤ first non-hire change, ≤ notice date).
+- **Alternatives:** Ignore name/email/hire-date columns for existing employees; reject any row that touches them; let imports change hire dates freely.
+- **Why:** HR must be able to predict what a re-upload does, and the import must never allow something the UI forbids. A hire change dated by the import ("FY26 review, 1 Apr") would put a new joiner's history at the wrong date.
+- **Trade-off:** Hire-date fixes by import require a separate `correction` import; the original `hire` entry stays as recorded (history is immutable), with the correction shown after it.
+
+## D-037 — Row-level error isolation in import jobs
+- **What:** Each row's transaction is wrapped in `try/catch`. Infrastructure errors (SQLSTATE `08`, `53`, `57P`, `40001`, `40P01`, socket errors) are re-thrown so the job is retried (skipping finished rows); any other error rolls back just that row, marks it rejected with an "unexpected error" reason and a reference, logs without row data, and continues.
+- **Alternatives:** Let any error fail the job (previous behaviour — one bad row would fail the import three times, then the whole import); treat every error as a row error (a lost connection would reject thousands of good rows).
+- **Why:** A bad row is a data problem and must not block 9,999 good rows; a lost connection is temporary and the retry will succeed.
+- **Trade-off:** A misclassified error is either rejected (HR re-uploads that row) or retried (bounded by 3 attempts); the classifier is unit-tested.
+
+## D-038 — Revocable sessions: token version + disabled flag checked on every request
+- **What:** `hr_users.token_version` and `disabled_at`; the JWT carries `tv`; `requireAuth` loads the user by ID per request and rejects if disabled or `tv` is stale. Logout and `npm run user:disable` increment `token_version`.
+- **Alternatives:** Stateless JWT only (up to 8 h of access after removal); server-side session table; shorter token lifetime with refresh tokens.
+- **Why:** Removing an HR user must cut off salary access immediately. One primary-key lookup per request is negligible at this scale and keeps the cookie/JWT design.
+- **Trade-off:** Every request touches the DB (already true for every salary endpoint); logout ends the user's sessions on all devices.
+
+## D-039 — "Today" in the org time zone; DATE columns as strings
+- **What:** `APP_TIMEZONE` (default `Asia/Kolkata`) defines "today" for all date rules (`Intl.DateTimeFormat`, no library). `DATE` columns are returned by `pg` as `YYYY-MM-DD` strings (type parser 1082) and handled as strings in server and web; DB sessions run in UTC; instants are `timestamptz`. Tests run with `TZ=America/Los_Angeles`.
+- **Alternatives:** UTC "today" (HR in India would see yesterday's date until 05:30); server local time (varies by machine); a date library.
+- **Why:** HR works in IST and INR is the default currency; converting `DATE` to JS `Date` is the classic off-by-one-day bug. Running tests in a different zone makes any hidden local-time dependency fail loudly.
+- **Trade-off:** Employees in other countries are judged by the IST calendar day (e.g. a US last working day ends at IST midnight) — acceptable for an HR-side tool.
