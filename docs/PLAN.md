@@ -105,8 +105,9 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a stale version → 409 `VERSION_CONFLICT`
       - PATCH can't change country, salary, title or department (400)
       - name and email edits create no change entry
-15. [ ] **Detail page + create and edit pages:** profile, current pay, create form, profile edit.
+15. [x] **Detail page + create and edit pages:** profile, current pay, create form, profile edit.
     - RTL tests: create posts the form and navigates to the new employee; a 409 shows the "updated by someone else — reload" message.
+    - Done as: `/employees/new` page; profile edit as a dialog on the detail page; list rows open the detail page; server field errors shown on their inputs.
 
     ✅ *Usable: HR can add employees and fix profile details.*
 

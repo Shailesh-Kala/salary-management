@@ -458,3 +458,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests (detail with version/status/currency/country name, 404 for unknown and malformed ids, PATCH name/email bumps version and writes no history, stale version → 409 keeping newer data, unknown → 404, six audited fields refused with 400, duplicate email → 409, empty update and missing version → 400); then `updateProfileSchema` (strict: name/email only), `findById`, `updateProfile` (`UPDATE … WHERE id AND version` in a CTE joined to countries), service conflict-vs-not-found branching, and routes. 192 tests pass.
+
+---
+
+## 30. Phase 3 — Task 15: Detail, create and edit pages
+
+```text
+next
+```
+
+**Response:** TDD: failing RTL tests (create posts trimmed-blank-free body and opens the new employee; server 400 and 409 shown on their fields; detail shows profile and pay in local currency; profile edit sends the loaded version; version conflict explains and reloads; 404 message; list row opens detail; "Add employee" link), with `mockApi` handlers now receiving the request body. Then the create page, detail page with edit-profile dialog, shared `StatusChip`, `useFilterOptions`, `fieldErrors`, routes and row navigation. Found and fixed flaky web tests (timeouts under parallel jsdom load): `userEvent` without per-key delay, 3 s async waits, 15 s test timeout — 12/12 clean runs. 201 tests pass. Slice D done.
