@@ -5,7 +5,7 @@ The plan is built in **vertical slices**: each slice delivers an API and the UI 
 Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../CLAUDE.md): `test:` (failing) → `feat:` (pass) → `refactor:` (if needed). The full suite stays green and the work is pushed after each task.
 
 - Setup-only tasks (1, 2) have no behaviour to test and use `chore:` / `ci:` commits.
-- **Tests** lists what is written first. `T1`–`T14` are the required acceptance tests from [REQUIREMENTS §11](REQUIREMENTS.md).
+- **Tests** lists what is written first. `T1`–`T18` are the required acceptance tests from [REQUIREMENTS §11](REQUIREMENTS.md).
 - Unit tests need no DB; integration tests use the real test DB; web tests use React Testing Library with `fetch` mocked (ARCHITECTURE §8.2).
 
 ## Slice A: Foundations
@@ -20,11 +20,12 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - an `AppError` maps to its status and code
      - an unknown error returns 500 `INTERNAL` with no stack
      - invalid env fails fast
-4. [ ] **Database and test harness:** `pg` pool (statement timeout), `withTransaction`, node-pg-migrate, migration `0001` (`hr_users`, `countries`, `exchange_rates`, `exchange_rate_changes` + reference data and rate snapshot), test global setup and truncate helper; `/health` checks the DB.
+4. [ ] **Database and test harness:** `pg` pool (statement timeout, DB session in UTC, `DATE` returned as string), `withTransaction`, node-pg-migrate, migration `0001` (`hr_users`, `countries`, `exchange_rates`, `exchange_rate_changes` + reference data and rate snapshot), test global setup and truncate helper; `/health` checks the DB.
    - Tests:
      - `/health` reports `db: ok`, and 503 when the DB check fails
      - `withTransaction` rolls back on throw
      - reference data is present after migrate
+     - a `DATE` round-trips as the identical `YYYY-MM-DD` string while the suite runs with `TZ=America/Los_Angeles`, set in the Vitest config (**T17**, DB part)
 
 ## Slice B: Log in
 5. [ ] **Password hashing** (`crypto.scrypt`).
@@ -33,7 +34,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - a wrong password fails
      - the same password gives different hashes (salt)
      - a malformed hash is rejected
-6. [ ] **Login / logout / me API + `requireAuth`.**
+6. [ ] **Login / logout / me API + `requireAuth` with revocation, and the user CLI** (`npm run user:create` / `user:disable -- <email>`).
    - Tests:
      - valid login sets an httpOnly, SameSite=Strict cookie
      - a wrong email or password gives the same generic 401
@@ -41,6 +42,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - an expired token (injected clock) → 401
      - logout clears the cookie
      - a protected route without a session → 401
+     - **T16:** after `disable`, the existing cookie → 401 on the next request and login fails with the generic message; after logout, replaying the old token → 401 (`token_version` changed)
 7. [ ] **Security middleware:** rate limits, helmet, CORS, log redaction.
    - Tests:
      - the 6th login attempt within a minute → 429 `RATE_LIMITED`
@@ -63,6 +65,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - amount validation (> 0, ≤ 2 decimals, no symbols)
      - annual → monthly rounding
      - `active` / `on_notice` / `exited` from dates and a fixed clock, including the boundary on the last working day itself
+     - **T17:** `today()` with `APP_TIMEZONE=Asia/Kolkata` at `2026-03-31T19:00:00Z` → `2026-04-01`
 10. [ ] **Create employee API:** migration `0002` (`employees` with checks and indexes, `employee_changes` with the immutability trigger), schemas, service, repository, `POST /api/employees`.
     - Unit tests: schema rules; the service writes a `hire` change with a full snapshot (including country and currency); email is lower-cased.
     - Integration tests:
@@ -112,6 +115,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - note is 5–1000 characters
       - a promotion with title + salary is one event
       - **relocation:** `countryCode` is only allowed with `relocation`; relocation requires `baseSalary` and `allowances`; the snapshot takes the new country's currency
+      - **hire date correction:** `hireDate` is only allowed with `correction`; it must be ≤ the first non-hire change's date and ≤ the notice date
     - Integration tests:
       - employee update and change row are atomic
       - version conflict → 409
@@ -179,6 +183,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a month after the current month is rejected
     - Integration tests:
       - a past-month slip uses the snapshot in effect at month end, not the current salary
+      - after a hire date is corrected to an earlier date, a slip for a month between the new hire date and the first snapshot uses the earliest snapshot
       - a slip for a month before a relocation uses the **old currency and country** (**T14**, slip part)
 27. [ ] **Slip PDF:** `?format=pdf`.
     - Tests: `application/pdf`, body starts with `%PDF`, `Content-Disposition` filename includes the employee code and month.
@@ -225,6 +230,12 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - effective date before that employee's latest change
       - unchanged detection
       - a country change with an unchanged base salary is rejected; with a new salary it becomes a relocation
+      - **T18:**
+        - a new code → `create` with a `hire` change on the row's hire date
+        - a name/email-only change → `update` with no history
+        - a hire-date change → rejected unless the import type is `correction`
+        - an audited change to an exited employee → rejected unless `correction`; a name/email change to them is still applied
+      - `isInfrastructureError` classifies SQLSTATE `08xxx`, `53xxx`, `57P01`, `40001`, `40P01` and socket errors as infrastructure, and everything else (e.g. `23505`, `TypeError`) as a row problem
     - Integration tests:
       - **T1:** the mixed fixture produces exact create / update / unchanged / rejected counts
       - **T3:** the rejected-rows CSV has the original header + `error`, one line per rejected row, and re-uploads cleanly after fixing
@@ -234,9 +245,11 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - **T2:** cancel leaves `employees` and `employee_changes` (history + audit) unchanged
       - confirm is only allowed from `awaiting_confirmation` (else 409)
       - **T7:** an imported salary change writes history with `source = import` and the import note
+      - a newly created employee's history entry is `hire`, effective on its hire date, not the import's type or date
       - a relocation row writes a `relocation` change with the new currency (**T14** complete)
       - a row invalidated between preview and apply ends up rejected
       - **T8:** a failure injected after N rows, then a retry → every row applied exactly once, one history row per changed row, earlier rows untouched
+      - **T15:** an unexpected error on row 3 → row 3 is rejected with the "unexpected error" reason, all other rows are applied, the import completes and the job isn't retried; an injected connection error → the job is retried and rows are still applied once (the same rule is checked in the validate step)
 36. [ ] **Preview expiry and data clearing.**
     - Integration tests:
       - **T12:** clock 24 h past ready → expire job sets `expired`; confirm → 410 (also before the job runs); nothing is written; a new upload is accepted; running the job again is a no-op
