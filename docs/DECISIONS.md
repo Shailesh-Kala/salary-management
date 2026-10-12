@@ -280,3 +280,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Disable the account and create a new one (D-043's workaround); self-service password change in the UI.
 - **Why:** Re-creating fails because the disabled account still owns the email, and would split one person's audit history (`changed_by`, exports) across two user IDs. A UI password change is out of scope.
 - **Trade-off:** Password changes still need someone with server/DB access to run the CLI.
+
+## D-045 — Seed relative to "today", refuse to overwrite without `--reset`
+- **What:** The generator takes `(count, seed, today)`; hire, notice and last-working-day dates are offsets from `today`, so the status mix (active / on notice / exited) is realistic whenever it runs. Seeding refuses a database that already has employees unless `--reset` is passed, which truncates employees and history and restores the rate snapshot. The seed admin is created only if missing.
+- **Alternatives:** Fixed calendar dates (byte-identical forever, but "on notice" employees become "exited" as time passes); always truncate.
+- **Why:** Demo data should look current; an accidental `npm run seed` against a database with real edits must not wipe it.
+- **Trade-off:** Output is identical only for the same day; tests pin `today`, so they stay deterministic.

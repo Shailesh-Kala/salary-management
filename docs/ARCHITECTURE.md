@@ -268,8 +268,10 @@ erDiagram
 ### 3.2 Seed data
 - **Countries and currencies:** IN/INR, US/USD, GB/GBP, DE/EUR, FR/EUR, SG/SGD, AU/AUD, CA/CAD, with a fixed rate snapshot (as of 2026-10-01). This is **reference data**, so it is loaded by migration `0001` through the SQL function `load_reference_data()`. Tests reuse the same function to restore it after emptying tables (D-041).
 - **One HR user** from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
-- **10,000 employees** generated with a seeded PRNG (`mulberry32`, about 10 lines, no dependency) and built-in name, title and department lists. Each employee gets a `hire` history row.
-- Rows are inserted with multi-row `INSERT … SELECT * FROM unnest($1::text[], …)` in batches of 1,000, inside one transaction. Target < 10 s; the measured time goes in the README.
+- **10,000 employees** generated with a seeded PRNG (`mulberry32`, about 10 lines, no dependency) and built-in name, title and department lists. Salaries come from per-title USD bands × country pay level × the snapshot rate, rounded to 1,000 local units. Each employee gets a `hire` history row; leavers (~7%) also get an `exit` row. Dates are relative to `today`, so output is identical for the same seed on the same day (D-045).
+- **Guard:** the seed refuses to run when employees exist; `--reset` truncates employees and history and restores the rate snapshot first.
+- **Search index at this size:** for broad terms the planner prefers a ~19 ms sequential scan over the ~5 ms trigram scan (cost estimate); both are far inside the 300 ms target, and the index takes over as the table grows.
+- Rows are inserted with multi-row `INSERT … SELECT * FROM unnest($1::text[], …)` in batches of 1,000, inside one transaction. Target < 10 s; measured **1.3–1.7 s** (README).
 
 ## 4. API
 Base path `/api`. JSON in and out unless noted. **All routes except `GET /health` and `POST /api/auth/login` require the session cookie.**

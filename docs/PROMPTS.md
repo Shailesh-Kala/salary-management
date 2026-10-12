@@ -428,3 +428,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests on a 5-employee, 4-currency fixture (default page sorted by name with INR and rates date, pagination incl. past the end, sort by converted salary asc/desc, USD conversion with exact expected values, 7 filter combinations, SQL status = `employeeStatus()`, search by name/full name/code/email and a literal `%`, 5 validation errors); then `listEmployeesQuery`, a repository query with whitelisted ORDER BY, parameters added only when used, trigram-index search expression, LIKE escaping, conversion `round((base+allowances) × rate_from ÷ rate_to, 2)`, separate count, and `ratesInfo` (oldest rate date + unknown-currency check). 155 tests pass.
+
+---
+
+## 27. Phase 3 — Task 12: Deterministic seed
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for `mulberry32` (same seed → same sequence), the generator (deterministic first/last rows + checksum, seed changes output, sequential codes, unique emails, every row accepted unchanged by the create schema, date order, status mix, all countries/departments) and `seedDatabase` (counts of employees/hire/exit changes, snapshot currency matches country, refuses without reset, keeps an existing admin); then PRNG, generator, batched `unnest` seeding in one transaction and `npm run seed [-- --reset]`. Seeded the app DB: 10,000 employees + 10,675 history entries in 1.72 s (empty) / ~1.3 s (reset). Checked search: trigram index 5 ms vs planner's 19 ms seq scan at 10k (both fine). Refactored seed snapshot to named fields. Logged D-045. 168 tests pass.

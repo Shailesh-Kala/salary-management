@@ -84,7 +84,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - search by name, code and email
       - `pageSize > 100` → 400
       - an unknown sort field → 400
-12. [ ] **Deterministic seed:** `npm run seed` loads 10,000 employees + hire changes + the admin user and prints the timing.
+12. [x] **Deterministic seed:** `npm run seed` loads 10,000 employees + hire changes + the admin user and prints the timing.
     - Tests:
       - the generator is deterministic (same seed → identical first and last rows and a checksum)
       - values are valid against the employee schema
