@@ -1,27 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from './config.ts';
 
-const DATABASE_URL = 'postgres://user:pass@localhost:5432/app';
+const required = {
+  DATABASE_URL: 'postgres://user:pass@localhost:5432/app',
+  JWT_SECRET: 'a-secret-that-is-at-least-32-characters',
+};
 
 describe('loadConfig', () => {
   it('applies defaults when optional variables are missing', () => {
-    expect(loadConfig({ DATABASE_URL })).toEqual({
+    expect(loadConfig(required)).toEqual({
       NODE_ENV: 'development',
       PORT: 3000,
-      DATABASE_URL,
+      COOKIE_SECURE: true,
+      ...required,
     });
   });
 
   it('parses provided values', () => {
-    expect(loadConfig({ NODE_ENV: 'production', PORT: '8080', DATABASE_URL })).toMatchObject({
+    const env = { ...required, NODE_ENV: 'production', PORT: '8080', COOKIE_SECURE: 'false' };
+
+    expect(loadConfig(env)).toMatchObject({
       NODE_ENV: 'production',
       PORT: 8080,
+      COOKIE_SECURE: false,
     });
   });
 
   it('fails fast naming each invalid or missing variable', () => {
-    expect(() => loadConfig({ NODE_ENV: 'staging', PORT: 'abc' })).toThrow(
-      /NODE_ENV.*PORT.*DATABASE_URL/,
+    expect(() => loadConfig({ NODE_ENV: 'staging', PORT: 'abc', JWT_SECRET: 'short' })).toThrow(
+      /NODE_ENV.*PORT.*DATABASE_URL.*JWT_SECRET/,
     );
   });
 });

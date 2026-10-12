@@ -3,6 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
+import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import { errorHandler } from './error-handler.ts';
 
@@ -37,6 +38,20 @@ describe('errorHandler', () => {
     expect(res.body).toEqual({
       error: { code: 'NOT_FOUND', message: 'Employee not found', requestId: 'req-1' },
     });
+  });
+
+  it('maps a zod validation error to 400 with one detail per field', async () => {
+    const schema = z.object({ email: z.email(), password: z.string() });
+    const app = appThrowing(schema.safeParse({ email: 'nope' }).error);
+
+    const res = await request(app).get('/boom');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: 'VALIDATION_ERROR', message: 'Invalid request' });
+    expect(res.body.error.details).toEqual([
+      { path: 'email', message: expect.any(String) },
+      { path: 'password', message: expect.any(String) },
+    ]);
   });
 
   it('hides unknown errors behind a generic 500 with no message or stack', async () => {

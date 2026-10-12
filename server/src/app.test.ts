@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { pino } from 'pino';
 import type { Pool } from 'pg';
-import { createApp } from './app.ts';
+import { buildTestApp } from '../test/app.ts';
 
 const fakeDb = (query: () => Promise<unknown>) => ({ query }) as unknown as Pool;
-const logger = pino({ level: 'silent' });
-const app = createApp({ logger, db: fakeDb(async () => ({ rows: [] })) });
+const app = buildTestApp({ db: fakeDb(async () => ({ rows: [] })) });
 
 describe('GET /health', () => {
   it('returns ok and echoes the incoming request id', async () => {
@@ -18,8 +16,7 @@ describe('GET /health', () => {
   });
 
   it('returns 503 when the database check fails', async () => {
-    const downApp = createApp({
-      logger,
+    const downApp = buildTestApp({
       db: fakeDb(async () => {
         throw new Error('connection refused');
       }),
@@ -52,5 +49,29 @@ describe('unknown route', () => {
     expect(res.body).toEqual({
       error: { code: 'NOT_FOUND', message: 'Route GET /nope not found', requestId: 'req-404' },
     });
+  });
+});
+
+describe('JSON body parsing', () => {
+  it('rejects malformed JSON with 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{"email": ');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Malformed JSON body',
+    });
+  });
+
+  it('rejects a JSON body over 100 kB with 413', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'a@b.co', password: 'x'.repeat(101 * 1024) });
+
+    expect(res.status).toBe(413);
+    expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
   });
 });

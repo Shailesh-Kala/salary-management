@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
+    "@types/cookie-parser": "1.4.10",
     "@types/express": "5.0.6",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
@@ -17,7 +18,9 @@
     "supertest": "7.3.1"
   },
   "dependencies": {
+    "cookie-parser": "1.4.7",
     "express": "5.3.0",
+    "jose": "6.2.12",
     "node-pg-migrate": "9.0.0",
     "pg": "8.23.1",
     "pino": "10.4.0",

@@ -1,8 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { pino } from 'pino';
+import { buildTestApp } from '../../test/app.ts';
 import { resetDb, testPool } from '../../test/db.ts';
-import { createApp } from '../app.ts';
 import { withTransaction } from './transaction.ts';
 
 beforeEach(resetDb);
@@ -34,7 +33,7 @@ describe('database connection', () => {
   });
 
   it('reports the database as up on /health', async () => {
-    const app = createApp({ logger: pino({ level: 'silent' }), db: testPool });
+    const app = buildTestApp();
 
     const res = await request(app).get('/health');
 
