@@ -206,3 +206,26 @@ describe('GET /api/employees', () => {
     expect(res.body.error.details.map((d: { path: string }) => d.path)).toEqual([path]);
   });
 });
+
+describe('GET /api/employees/filter-options', () => {
+  it('lists countries with currency, distinct departments and titles, and currencies', async () => {
+    const res = await request(app).get('/api/employees/filter-options').set('Cookie', cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      countries: [
+        { code: 'AU', name: 'Australia', currencyCode: 'AUD' },
+        { code: 'CA', name: 'Canada', currencyCode: 'CAD' },
+        { code: 'FR', name: 'France', currencyCode: 'EUR' },
+        { code: 'DE', name: 'Germany', currencyCode: 'EUR' },
+        { code: 'IN', name: 'India', currencyCode: 'INR' },
+        { code: 'SG', name: 'Singapore', currencyCode: 'SGD' },
+        { code: 'GB', name: 'United Kingdom', currencyCode: 'GBP' },
+        { code: 'US', name: 'United States', currencyCode: 'USD' },
+      ],
+      departments: ['Engineering', 'Finance', 'Sales'],
+      jobTitles: ['Account Executive', 'Analyst', 'Software Engineer'],
+      currencies: ['AUD', 'CAD', 'EUR', 'GBP', 'INR', 'SGD', 'USD'],
+    });
+  });
+});
