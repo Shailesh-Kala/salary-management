@@ -388,3 +388,13 @@ next
 ```
 
 **Response:** TDD: failing tests for the 6th same-email login (429), the 21st login from one IP with different emails (429), 300 API requests/user then 429 + `Retry-After`, helmet headers, CORS allow/deny, and a log-capture test (no cookie, query, salary, email or password); then `express-rate-limit` (20/min per IP + 5/min per IP+email on login, 300/min per user on `/api`, errors in the standard shape), `helmet` (HSTS only when `COOKIE_SECURE`), `cors` restricted to `CORS_ORIGIN`, and pino-http serializers logging only id/method/path/status. 61 tests pass. Stopped three leftover smoke-test servers from earlier tasks.
+
+---
+
+## 23. Phase 3 — Task 8: Web scaffold + login page
+
+```text
+next
+```
+
+**Response:** Added the `web` workspace (Vite 8, React 19, MUI 9, React Router 8, TanStack Query, Vitest + jsdom + Testing Library, react-hooks lint rules). TDD: failing RTL tests (login → `/employees`, `?next=` return, three open-redirect attempts ignored, generic 401 alert, protected-route redirect with `next`, valid session, sign out); then the API client (credentials, error shape, network error), `useMe`/`useLogin`, `safeNext`, `RequireAuth`, app bar with sign out (clears all cached data), login page. Fixed an immediate `/me` refetch after login (5-min `staleTime`) and made a failed background refetch not blank the page. Smoke-tested login through the Vite proxy against the test DB; production build compiles. README Setup/Run/Test filled in. 70 tests pass.

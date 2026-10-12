@@ -53,7 +53,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - security headers are present
      - a disallowed origin gets no CORS headers
      - a captured log line contains no cookie, body or salary
-8. [ ] **Web scaffold + login page:** Vite, MUI theme, React Router, TanStack Query, API client (cookies, error-shape parsing), auth guard, `?next=` return.
+8. [x] **Web scaffold + login page:** Vite, MUI theme, React Router, TanStack Query, API client (cookies, error-shape parsing), auth guard, `?next=` return.
    - RTL tests:
      - a successful login navigates to `next`, or to `/employees` by default
      - a 401 shows a generic error

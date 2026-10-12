@@ -14,16 +14,37 @@ Web-based salary management for ACME's HR Manager — replaces Excel for managin
 - Testing: Vitest + Supertest
 
 ## Setup
-_TBD_
+Prerequisites: Node 24.21.0 (`nvm use` reads `.nvmrc`) and PostgreSQL 14 or newer.
+
+```bash
+npm ci
+cp .env.example .env            # then fill in DATABASE_URL, TEST_DATABASE_URL, JWT_SECRET (32+ chars)
+createdb salary_management
+createdb salary_management_test
+npm run migrate -w server       # creates tables + countries and exchange-rate snapshot
+npm run user:create -w server -- hr@acme.local "HR Manager"   # prints the password once
+```
+
+Account commands: `user:create`, `user:reset-password`, `user:disable`, `user:enable` (all `-w server -- <email>`).
 
 ## Run
-_TBD_
+Two terminals:
+
+```bash
+npm run dev -w server           # API on http://localhost:3000
+npm run dev -w web              # app on http://localhost:5173 (proxies /api to the API)
+```
+
+Open http://localhost:5173 and sign in. For plain-http localhost keep `COOKIE_SECURE=false` in `.env` (Safari won't store `Secure` cookies over http).
 
 ## Seed (10,000 employees)
 _TBD_ — including measured timing.
 
 ## Test
-_TBD_
+```bash
+npm test                        # server (unit + integration on TEST_DATABASE_URL) and web
+npm run lint && npm run typecheck
+```
 
 ## Docs
 - [Requirements](docs/REQUIREMENTS.md)
