@@ -117,3 +117,13 @@ The reason for single repo is we will be sending the code for assessment review 
 ```
 
 **Response:** Updated D-001 rationale (single repo for assessment review), installed Node 24.21.0 via nvm as default, pinned it in `.nvmrc`, logged D-002. Noted DB connection will be supplied by the user via `.env`.
+
+---
+
+## 3. Phase 1 — Requirements
+
+```text
+next
+```
+
+**Response:** Wrote `docs/REQUIREMENTS.md` (goal, persona, 7 in-scope features incl. 6 concrete pay-insight questions, out-of-scope table with reasoning, data model fields, auth/privacy, NFR targets incl. high-load handling, assumptions, 7 open questions with defaults) and logged decisions D-003–D-008.
