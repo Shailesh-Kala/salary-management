@@ -267,3 +267,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Per IP + email only; per IP only; account lockout after N failures.
 - **Why:** The per-email limit slows guessing one account; the per-IP limit stops one machine spraying a common password across many accounts. Lockout would let anyone lock HR out by typing their email.
 - **Trade-off:** Several HR users behind one office NAT share the 20/min budget — ample for normal logins.
+
+## D-043 — `user:create` generates the password and prints it once
+- **What:** `npm run user:create -- <email> "<name>"` creates the account with a random 144-bit password (`randomBytes(18)`, base64url) and prints it once. `user:disable` sets `disabled_at` and ends sessions.
+- **Alternatives:** Password as a CLI argument (lands in shell history); interactive hidden prompt (extra terminal-handling code); env variable.
+- **Why:** Nothing sensitive in shell history or process lists, no prompt code, and the password is stronger than a typical chosen one.
+- **Trade-off:** There is no change-password feature (password reset is out of scope), so HR keeps the generated password; to rotate, disable the account and create a new one.

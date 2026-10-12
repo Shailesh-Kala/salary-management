@@ -35,7 +35,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - a wrong password fails
      - the same password gives different hashes (salt)
      - a malformed hash is rejected
-6. [ ] **Login / logout / me API + `requireAuth` with revocation, and the user CLI** (`npm run user:create` / `user:disable -- <email>`).
+6. [x] **Login / logout / me API + `requireAuth` with revocation, and the user CLI** (`npm run user:create` / `user:disable -- <email>`).
    - Tests:
      - valid login sets an httpOnly, SameSite=Strict cookie
      - a wrong email or password gives the same generic 401

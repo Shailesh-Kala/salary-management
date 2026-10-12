@@ -354,3 +354,13 @@ Looks good, thanks. A few small things:
 ```
 
 **Response:** Confirmed only async callback `scrypt` is used (grep: no `scryptSync`). TDD: `verifyPassword` takes an optional logger and warns "stored password hash is malformed" (no hash) for malformed formats and for parameters scrypt refuses; no warning for a wrong password. Added a 20/min per-IP login limit to Task 7, REQUIREMENTS and ARCHITECTURE; logged D-042. 31 tests pass.
+
+---
+
+## 20. Phase 3 — Task 6: Login, logout, me, revocation, user CLI
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests (cookie flags and 8 h Max-Age, identical generic 401 for wrong password/unknown email, 400 with field details, `/me`, every `/api` route protected, tampered token, expiry with injected clock, logout + replayed token, disable ends sessions and blocks login — T16) plus malformed-JSON 400, 413 body limit, zod → 400 mapping and new config keys; then `jose` HS256 tokens with `tv`, auth service (dummy hash for unknown emails, per-request user re-check), `requireAuth`, `express.json` + `cookie-parser`, `user:create`/`user:disable` CLI. 46 tests pass; CLI verified against the test DB. Logged D-043.
