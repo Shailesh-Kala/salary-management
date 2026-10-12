@@ -149,3 +149,14 @@ Q7. Yes, but there should be reason/note required
 ```
 
 **Response:** Revised REQUIREMENTS.md: added lifecycle (active / on_notice / exited, derived from dates) with resignation and last working day, required change type + note on every pay/title change, CSV/Excel/PDF export (PDF capped at 1,000 rows), gross-only slips, INR default, broader audit, new Q6/Q7 insights; dropped deployment from README/CLAUDE.md. Logged D-009–D-014 and marked superseded decisions; raised OQ8 (xlsx import) and OQ9 (PDF cap).
+
+---
+
+## 5. Phase 1 — Requirements (open questions OQ8–OQ9)
+
+```text
+Q8. Let's only accept to CSV format and give user to an template on which there will be pre defined example values with headers and we need to put validation on the file size and how many rows will be accepted and rejected that report should be available to user as we can put the import in the queue in the background job
+Q9. Let's make it 1000 rows at a time and if user wants more then suggest that it will it will be sended over email and ask for the email on which user want the export value and these process will be in the background queue
+```
+
+**Response:** Added CSV template with example rows, upload limits, background import job with accepted/rejected report and rejected-rows CSV, PDF > 1,000 rows via background job + email, and a PostgreSQL-backed job queue (F9). Logged D-015–D-017; raised OQ10 (email a login-protected expiring link instead of an attachment) and OQ11 (partial import vs all-or-nothing).
