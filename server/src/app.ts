@@ -1,17 +1,25 @@
 import { randomUUID } from 'node:crypto';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import type { Pool } from 'pg';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
+import type { Config } from './config.ts';
+import type { Clock } from './lib/clock.ts';
 import { AppError } from './lib/errors.ts';
+import { requireAuth } from './middleware/auth.ts';
 import { errorHandler } from './middleware/error-handler.ts';
+import { authRoutes } from './modules/auth/auth.routes.ts';
+import { createAuthService } from './modules/auth/auth.service.ts';
+import { createSessionTokens } from './modules/auth/session-tokens.ts';
+import { createUsersRepository } from './modules/auth/users.repository.ts';
 
-export type AppDeps = { logger: Logger; db: Pool };
+export type AppDeps = { logger: Logger; db: Pool; clock: Clock; config: Config };
 
 // Accept a caller's request ID only if it can't inject anything into logs or headers.
 const SAFE_REQUEST_ID = /^[\w-]{1,64}$/;
 
-export function createApp({ logger, db }: AppDeps) {
+export function createApp({ logger, db, clock, config }: AppDeps) {
   const app = express();
 
   app.use(
@@ -26,6 +34,8 @@ export function createApp({ logger, db }: AppDeps) {
       },
     }),
   );
+  app.use(express.json({ limit: '100kb' }));
+  app.use(cookieParser());
 
   app.get('/health', async (req, res) => {
     try {
@@ -36,6 +46,19 @@ export function createApp({ logger, db }: AppDeps) {
       res.status(503).json({ status: 'error', db: 'down' });
     }
   });
+
+  const auth = createAuthService({
+    users: createUsersRepository(db),
+    tokens: createSessionTokens(config.JWT_SECRET, clock),
+  });
+  const { publicRoutes, protectedRoutes } = authRoutes(auth, config);
+
+  // Everything under /api needs a session except the routes registered before requireAuth.
+  const api = express.Router();
+  api.use(publicRoutes);
+  api.use(requireAuth(auth));
+  api.use(protectedRoutes);
+  app.use('/api', api);
 
   app.use((req, _res, next) => {
     next(new AppError('NOT_FOUND', 404, `Route ${req.method} ${req.path} not found`));

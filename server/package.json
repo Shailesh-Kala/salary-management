@@ -6,6 +6,8 @@
     "start": "node --env-file-if-exists=../.env src/main.ts",
     "dev": "node --env-file-if-exists=../.env --watch src/main.ts",
     "migrate": "node --env-file-if-exists=../.env scripts/migrate.ts",
+    "user:create": "node --env-file-if-exists=../.env scripts/user.ts create",
+    "user:disable": "node --env-file-if-exists=../.env scripts/user.ts disable",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
