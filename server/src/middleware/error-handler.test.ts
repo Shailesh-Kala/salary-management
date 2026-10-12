@@ -54,6 +54,23 @@ describe('errorHandler', () => {
     ]);
   });
 
+  it.each([
+    ['employees_employee_code_key', 'employeeCode'],
+    ['employees_email_key', 'email'],
+  ])('maps a unique violation on %s to 409 DUPLICATE on %s', async (constraint, field) => {
+    const pgError = Object.assign(new Error('duplicate key'), { code: '23505', constraint });
+    const app = appThrowing(pgError);
+
+    const res = await request(app).get('/boom');
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: 'DUPLICATE',
+      message: `Another record already has this ${field}`,
+      details: [{ path: field, message: 'Already in use' }],
+    });
+  });
+
   it('hides unknown errors behind a generic 500 with no message or stack', async () => {
     const app = appThrowing(new Error('connection to db-password-123 failed'));
 
