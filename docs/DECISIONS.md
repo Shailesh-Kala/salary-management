@@ -92,12 +92,14 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Trade-off:** Status depends on "today", so the clock must be injected for deterministic tests; filtering by status is an expression over dates (fine at 10k rows, indexable on `last_working_day`).
 
 ## D-015 — CSV import as a background job with partial accept and a rejected-rows report
+> **Amended by D-019** — adds a preview/confirm step and one transaction per row.
 - **What:** Template CSV with example rows (`EXAMPLE-*`, auto-rejected if left in). Upload is checked synchronously (type, ≤ 5 MB, header, 1–20,000 rows, change type/date/note), then queued (`202` + job ID). Valid rows are upserted by `employee_code`; invalid rows are rejected with reasons and downloadable as a CSV with an `error` column. One import runs at a time.
 - **Alternatives:** Synchronous all-or-nothing import (previous default); `.xlsx` import.
 - **Why:** Project owner wants a template, limits and an accepted/rejected report delivered via a background job. Partial accept means one typo doesn't block 9,999 good rows, and the rejected-rows file closes the fix-and-retry loop.
 - **Trade-off:** A file can be half-applied, so the report must be clear; more moving parts (job table, row results, polling UI) than a synchronous import.
 
 ## D-016 — Large PDF exports via background job, delivered as an expiring link by email
+> **Amended by D-018** — email goes only to the requester's own address; no recipient field or domain allowlist.
 - **What:** PDF ≤ 1,000 rows downloads directly. Above that, HR enters a recipient (prefilled with their own email, restricted to allowed company domains), a background job builds the PDF, and an email with a login-protected link expiring in 24 h is sent. No attachment.
 - **Alternatives:** Hard cap with "narrow your filters"; attach the PDF to the email.
 - **Why:** Project owner wants large PDFs delivered by email. Attachments of full salary data can't be revoked or access-controlled once sent; a link keeps the data behind authentication and an expiry.
@@ -108,3 +110,15 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Redis + BullMQ; in-memory queue.
 - **Why:** No extra infrastructure for a reviewer to install; jobs survive restarts (unlike in-memory); throughput needs are tiny (a few jobs per day).
 - **Trade-off:** Polling adds a few seconds of pickup latency; not built for high job throughput (fine here).
+
+## D-018 — Emailed exports go only to the requester, link bound to the requester
+- **What:** Large PDF exports are emailed only to the logged-in user's own account address (no recipient field, no domain allowlist). The link requires login **and** that the downloader is the requester (`403` otherwise), expires in 24 h (`410` after), and the file is deleted at expiry by a scheduled cleanup job. Every download and refused attempt is audited.
+- **Alternatives:** Typed-in recipient restricted to company domains (D-016); attaching the file.
+- **Why:** Project owner's tightening: the link already needs an HR login, so sending to anyone else adds risk without value. Removes mistyped-address leaks entirely, and binding the link to the requester means a forwarded email is useless.
+- **Trade-off:** HR cannot hand an export to a colleague via the app; the colleague must run the export themselves. Needs delayed-job support in the queue for cleanup.
+
+## D-019 — Import preview and confirm, one transaction per row
+- **What:** Upload → background validation → preview (valid / rejected counts, rejected-rows CSV) → "Import valid rows" or "Cancel". Apply re-validates and upserts each row in its own transaction; changes create history entries with `source = import`. Cancel writes nothing.
+- **Alternatives:** Import immediately after validation (D-015); one transaction for the whole file; batched transactions.
+- **Why:** Project owner wants HR to see the outcome before anything is saved. Per-row transactions mean one failing row never rolls back good ones, and re-upload of fixed rows is safe because of upsert by employee code.
+- **Trade-off:** Slower than batched writes (10k transactions — target < 60 s); data can change between preview and apply, handled by re-validating at apply time; staged rows are stored until the import finishes or is cancelled.
