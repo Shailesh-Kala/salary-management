@@ -9,4 +9,10 @@ export default tseslint.config(
   tseslint.configs.recommended,
   prettier,
   { languageOptions: { globals: globals.node } },
+  {
+    rules: {
+      // Express identifies error handlers by arity, so unused `_next` must be allowed.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
 );
