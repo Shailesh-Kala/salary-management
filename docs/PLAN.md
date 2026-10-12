@@ -21,7 +21,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - an `AppError` maps to its status and code
      - an unknown error returns 500 `INTERNAL` with no stack
      - invalid env fails fast
-4. [ ] **Database and test harness:** `pg` pool (statement timeout, DB session in UTC, `DATE` returned as string), `withTransaction`, node-pg-migrate, migration `0001` (`hr_users`, `countries`, `exchange_rates`, `exchange_rate_changes` + reference data and rate snapshot), test global setup and truncate helper; `/health` checks the DB.
+4. [x] **Database and test harness:** `pg` pool (statement timeout, DB session in UTC, `DATE` returned as string), `withTransaction`, node-pg-migrate, migration `0001` (`hr_users`, `countries`, `exchange_rates`, `exchange_rate_changes` + reference data and rate snapshot), test global setup and truncate helper; `/health` checks the DB.
    - Tests:
      - `/health` reports `db: ok`, and 503 when the DB check fails
      - `withTransaction` rolls back on throw

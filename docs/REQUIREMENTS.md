@@ -108,7 +108,7 @@ We deliberately don't compare a job title *across* countries in local currency, 
 
 ### 4.5 F5: Multi-currency comparison
 - Each employee is paid in the **local currency of their country** (one country per employee). Salaries are stored in that currency and are **never converted on write**.
-- An **exchange-rate table** holds one rate per currency, expressed as **INR per 1 unit** (e.g. USD = 83.20, EUR = 90.10, INR = 1), with an "as of" date and who last updated it. HR can edit the rates. The seed script loads a fixed snapshot.
+- An **exchange-rate table** holds one rate per currency, expressed as **INR per 1 unit** (e.g. USD = 83.20, EUR = 90.10, INR = 1), with an "as of" date and who last updated it. HR can edit the rates. A fixed snapshot is loaded with the reference data when the database is first migrated.
 - **Rate changes are audited:** every update appends an immutable rate-history entry (currency, old → new rate, old → new "as of" date, who, when). The rates page shows this history.
 - Converting between any two currencies goes through INR: `amount × rate[from] ÷ rate[to]`. Results are rounded to 2 decimals only at the end.
 - **Reporting currency** is selectable in insights, the list and exports. The default is **INR**.

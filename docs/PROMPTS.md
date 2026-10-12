@@ -321,3 +321,13 @@ I am using mailtrap Sandbox test email cred can we add email username and passwo
 ```
 
 **Response:** Added `SMTP_USER` / `SMTP_PASS` and Mailtrap Sandbox host/port (`sandbox.smtp.mailtrap.io:2525`) to `.env.example`, with Mailpit as a no-auth alternative; SMTP auth is optional. Updated ARCHITECTURE and REQUIREMENTS to match.
+
+---
+
+## 17. Phase 3 — Task 4: Database and test harness
+
+```text
+Done, Next
+```
+
+**Response:** Created the missing `salary_management` database (only the test DB existed). TDD: failing tests for DATE-as-string under `TZ=America/Los_Angeles` (T17 DB part), UTC session + 5 s statement timeout, reference data, `withTransaction` commit/rollback, `/health` db ok/503, and the test-DB guard; then `pg` pool, `withTransaction`, node-pg-migrate runner + `npm run migrate`, migration `0001` (users, rates, countries, rate history, `load_reference_data()`), Vitest global setup and `resetDb()`. 20 tests pass; migrated the app DB; live `/health` ok. Logged D-041; noted PostgreSQL 14+ (local 14.3, CI 16).

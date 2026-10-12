@@ -255,3 +255,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** TypeScript 7.0 (latest, native Go compiler).
 - **Why:** `typescript-eslint@8.71` supports TypeScript `<6.1` only; 6.0 has every flag we need (`erasableSyntaxOnly`, `verbatimModuleSyntax`).
 - **Trade-off:** Misses TS 7's faster type-checking; upgrade when typescript-eslint supports it.
+
+## D-041 — Reference data (countries, rate snapshot) in migration 0001 via `load_reference_data()`
+- **What:** Migration `0001` creates a SQL function `load_reference_data()` that upserts the 8 countries and the rate snapshot, and calls it once. The test helper `resetDb()` empties every table and calls the same function.
+- **Alternatives:** Load rates in the seed script only (countries need rates through their FK, so the app would be unusable before seeding); duplicate the data in a test fixture.
+- **Why:** Countries and rates are needed in every environment, including an unseeded one; one SQL source of truth for both the app and tests.
+- **Trade-off:** The function resets rates to the snapshot if called again, so only the migration, the seed and tests call it (noted in the migration).

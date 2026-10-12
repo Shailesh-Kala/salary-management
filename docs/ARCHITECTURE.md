@@ -27,7 +27,7 @@ flowchart LR
     RT -.errors.-> EH
   end
 
-  PG[("PostgreSQL 16<br/>employees · employee_changes · imports<br/>import_rows · exports · jobs · …")]
+  PG[("PostgreSQL 14+<br/>employees · employee_changes · imports<br/>import_rows · exports · jobs · …")]
   SMTP["SMTP<br/>(Mailtrap Sandbox / Mailpit locally)"]
 
   SPA -- "JSON over HTTP(S)<br/>httpOnly session cookie" --> MW
@@ -146,6 +146,7 @@ sequenceDiagram
 | Frontend | React 19, Vite, TypeScript, MUI, MUI X DataGrid (server mode), React Router, TanStack Query | D-026 |
 | Tests | Vitest, Supertest, React Testing Library | Real PostgreSQL test DB (D-027) |
 | Lint / format | ESLint (typescript-eslint) + Prettier | Run in CI |
+| Database | PostgreSQL 14 or newer (developed on 14.3, CI on 16) | Uses only features available since 13–14 (`gen_random_uuid`, `SKIP LOCKED`, `percentile_cont`, partial indexes) |
 | CI | GitHub Actions with a `postgres:16` service | lint → typecheck → test |
 
 ## 3. Data model
@@ -265,7 +266,7 @@ erDiagram
 - **Index:** `(status, run_after)`.
 
 ### 3.2 Seed data
-- **Countries and currencies:** IN/INR, US/USD, GB/GBP, DE/EUR, FR/EUR, SG/SGD, AU/AUD, CA/CAD, with a fixed rate snapshot.
+- **Countries and currencies:** IN/INR, US/USD, GB/GBP, DE/EUR, FR/EUR, SG/SGD, AU/AUD, CA/CAD, with a fixed rate snapshot (as of 2026-10-01). This is **reference data**, so it is loaded by migration `0001` through the SQL function `load_reference_data()`. Tests reuse the same function to restore it after emptying tables (D-041).
 - **One HR user** from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 - **10,000 employees** generated with a seeded PRNG (`mulberry32`, about 10 lines, no dependency) and built-in name, title and department lists. Each employee gets a `hire` history row.
 - Rows are inserted with multi-row `INSERT … SELECT * FROM unnest($1::text[], …)` in batches of 1,000, inside one transaction. Target < 10 s; the measured time goes in the README.
@@ -429,7 +430,7 @@ salary-management/
 | **One active import:** a partial unique index; a unique violation maps to `409 IMPORT_IN_PROGRESS` (D-021). | |
 | **Preview expiry:** a delayed `import_expire` job plus a check at confirm time (D-031). Both are idempotent, and expiry releases the single-import lock. | |
 | **Relocation:** country and salary change in one event and one transaction; the snapshot holds the new `country_code` and `currency_code` (D-033). | |
-| **Health:** `GET /health` runs `SELECT 1` with a 1 s timeout → `200` or `503`. | |
+| **Health:** `GET /health` runs `SELECT 1` → `200 {status:'ok', db:'ok'}` or `503 {status:'error', db:'down'}`. It's bounded by the pool's 2 s connection timeout and 5 s statement timeout. | No separate health timeout; the pool limits already bound it. |
 | **Graceful shutdown:** on SIGTERM/SIGINT, stop accepting HTTP, let the worker finish its current row or job step, then close the pool. | |
 | **Structured logs:** each request gets an ID (incoming `X-Request-Id` or `randomUUID()`), echoed in the response header and in every error body. Worker logs carry `jobId` and `type`. | |
 | **Errors:** domain errors (`AppError(code, status, message, details)`) are thrown by services and mapped by one error handler. zod errors become `VALIDATION_ERROR` with field paths; PG unique violations become `DUPLICATE` with the field. Unknown errors are logged with the stack and returned as `INTERNAL` without it. | |
