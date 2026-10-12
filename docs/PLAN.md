@@ -12,7 +12,8 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
 1. [x] **Workspace scaffold:** npm workspaces (`server`; `web` joins in Task 8 when it has content), ESLint + Prettier, Vitest, `engines: node 24.21.0`, `.env.example`.
    - `tsconfig` sets `erasableSyntaxOnly`, `verbatimModuleSyntax`, `allowImportingTsExtensions`, `noEmit` and `strict`.
    - Done when `npm run lint`, `npm run typecheck` and `npm test` run, and `node server/src/main.ts` starts.
-2. [ ] **CI:** a GitHub Actions workflow with a `postgres:16` service that runs lint → typecheck → test on every push.
+2. [x] **CI:** a GitHub Actions workflow with a `postgres:16` service that runs lint → typecheck → test on every push.
+   - First run blocked by a GitHub account billing lock (job not started); the same steps pass locally from `npm ci`. Re-run once the account is unlocked.
 3. [ ] **App skeleton:** `config.ts` (zod env), pino logger with request ID, `AppError` + central error handler, `createApp(deps)`, `GET /health`.
    - Tests:
      - `/health` returns 200 and echoes `X-Request-Id`

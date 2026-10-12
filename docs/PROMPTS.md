@@ -271,3 +271,13 @@ next
 ```
 
 **Response:** Scaffolded the npm workspace (`server`), TypeScript 6.0 with `erasableSyntaxOnly`/`verbatimModuleSyntax`/`noEmit`, ESLint (typescript-eslint) + Prettier, Vitest, exact-pinned tools, `engines: node 24.21.0`, `.env.example`. Lint, typecheck, test and `node server/src/main.ts` all pass. Logged D-040 (TS 6.0 pin).
+
+---
+
+## 12. Phase 3 — Task 2: CI
+
+```text
+Next
+```
+
+**Response:** Added `.github/workflows/ci.yml` (Node from `.nvmrc`, npm cache, `postgres:16` service, `TEST_DATABASE_URL`, `npm ci` → lint → typecheck → test). GitHub did not start the job because the account is locked for billing; the same steps pass locally from a clean `npm ci`.
