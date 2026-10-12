@@ -45,7 +45,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
      - a protected route without a session → 401
      - **T16:** after `disable`, the existing cookie → 401 on the next request and login fails with the generic message; after logout, replaying the old token → 401 (`token_version` changed)
      - follow-up: `user:reset-password` (new password, sessions end, same user ID) and `user:enable`; `COOKIE_SECURE=false` omits `Secure`; unknown / wrong / disabled logins each run exactly one hash check and throw the identical error
-7. [ ] **Security middleware:** rate limits, helmet, CORS, log redaction.
+7. [x] **Security middleware:** rate limits, helmet, CORS, log redaction.
    - Tests:
      - the 6th login attempt for the same email from one IP within a minute → 429 `RATE_LIMITED`
      - the 21st login attempt from one IP within a minute, each with a **different** email → 429 (per-IP limit)

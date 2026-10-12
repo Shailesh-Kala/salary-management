@@ -378,3 +378,13 @@ Before "next":
 ```
 
 **Response:** Confirmed `secure: config.COOKIE_SECURE` (default true; user's `.env` is false) and added a test that `false` omits `Secure`. Confirmed disabled users already go through the same single hash check; added a unit test proving unknown / wrong / disabled each call `verifyPassword` once and throw the identical error (found and fixed a test bug: a `beforeEach` that returned the mock was run by Vitest as a cleanup hook). TDD: `resetPassword` (new password, `token_version` bump, same user ID) and `enableUser`, plus `user:reset-password` / `user:enable` CLI; refactor made `log` required. 54 tests pass. Logged D-044.
+
+---
+
+## 22. Phase 3 — Task 7: Security middleware
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for the 6th same-email login (429), the 21st login from one IP with different emails (429), 300 API requests/user then 429 + `Retry-After`, helmet headers, CORS allow/deny, and a log-capture test (no cookie, query, salary, email or password); then `express-rate-limit` (20/min per IP + 5/min per IP+email on login, 300/min per user on `/api`, errors in the standard shape), `helmet` (HSTS only when `COOKIE_SECURE`), `cors` restricted to `CORS_ORIGIN`, and pino-http serializers logging only id/method/path/status. 61 tests pass. Stopped three leftover smoke-test servers from earlier tasks.
