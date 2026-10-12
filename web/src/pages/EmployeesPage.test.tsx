@@ -164,6 +164,22 @@ describe('employees list page', () => {
     expect(await screen.findByText('Annual salary (USD)')).toBeInTheDocument();
   });
 
+  it('opens an employee when their row is clicked', async () => {
+    setup();
+
+    await user().click(await screen.findByText('Asha Verma'));
+
+    await waitFor(() => expect(location()).toHaveTextContent(/^\/employees\/e1$/));
+  });
+
+  it('links to the create form', async () => {
+    setup();
+
+    await user().click(await screen.findByRole('link', { name: /add employee/i }));
+
+    await waitFor(() => expect(location()).toHaveTextContent(/^\/employees\/new$/));
+  });
+
   it('sends the user to login when the session has expired', async () => {
     setup('/employees?country=IN', () =>
       json(401, { error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }),
