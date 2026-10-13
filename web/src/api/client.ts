@@ -14,7 +14,12 @@ export class ApiError extends Error {
   readonly requestId?: string;
 
   constructor(status: number, body: ApiErrorBody) {
-    super(body.message);
+    // An unexpected error carries its reference, so a screenshot can be matched to the server log.
+    super(
+      body.code === 'INTERNAL' && body.requestId
+        ? `${body.message} (ref ${body.requestId})`
+        : body.message,
+    );
     this.status = status;
     this.code = body.code;
     this.details = body.details;
