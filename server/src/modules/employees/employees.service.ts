@@ -2,9 +2,9 @@ import type { Clock } from '../../lib/clock.ts';
 import { AppError, invalidField } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
 import { type CurrentState, planChange, snapshotOf } from './changes.ts';
+import type { CreateEmployeeInput } from '../../shared/employee-rules.ts';
 import type {
   ChangeEventInput,
-  CreateEmployeeInput,
   ExitInput,
   ListEmployeesQuery,
   UpdateProfileInput,

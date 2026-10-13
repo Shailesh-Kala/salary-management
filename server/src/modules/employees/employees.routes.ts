@@ -1,9 +1,9 @@
 import { type Request, Router } from 'express';
 import { z } from 'zod';
 import { AppError } from '../../lib/errors.ts';
+import { createEmployeeSchema } from '../../shared/employee-rules.ts';
 import {
   changeEventSchema,
-  createEmployeeSchema,
   exitSchema,
   listEmployeesQuery,
   updateProfileSchema,

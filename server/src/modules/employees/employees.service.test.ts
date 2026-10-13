@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock } from '../../../test/app.ts';
 import { AppError } from '../../lib/errors.ts';
-import { createEmployeeSchema } from './employee.schemas.ts';
+import { createEmployeeSchema } from '../../shared/employee-rules.ts';
 import type { EmployeeRepos } from './employees.repository.ts';
 import { createEmployeesService } from './employees.service.ts';
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createEmployeeSchema } from '../modules/employees/employee.schemas.ts';
+import { createEmployeeSchema } from '../shared/employee-rules.ts';
 import { employeeStatus } from '../modules/employees/status.ts';
 import { addDays } from '../lib/dates.ts';
 import { generateEmployees } from './generate.ts';

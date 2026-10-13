@@ -1,3 +1,4 @@
+import { NOTE_MAX_LENGTH, NOTE_MIN_LENGTH } from '@shared/employee-rules.ts';
 import {
   Alert,
   Button,
@@ -42,7 +43,11 @@ export function ExitDialog({
   const outOfOrder = bothDates && form.lastWorkingDay < form.noticeDate;
   const noteLength = form.note.trim().length;
   const canSave =
-    form.exitType !== '' && bothDates && !outOfOrder && noteLength >= 5 && noteLength <= 1000;
+    form.exitType !== '' &&
+    bothDates &&
+    !outOfOrder &&
+    noteLength >= NOTE_MIN_LENGTH &&
+    noteLength <= NOTE_MAX_LENGTH;
 
   const lastDayHelp =
     fields.lastWorkingDay ??
@@ -106,7 +111,7 @@ export function ExitDialog({
             value={form.note}
             onChange={set('note')}
             error={Boolean(fields.note)}
-            helperText={fields.note ?? `Shown in the history (${noteLength}/1000)`}
+            helperText={fields.note ?? `Shown in the history (${noteLength}/${NOTE_MAX_LENGTH})`}
             multiline
             minRows={2}
             required

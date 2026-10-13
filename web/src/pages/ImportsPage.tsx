@@ -1,3 +1,4 @@
+import { NOTE_MIN_LENGTH } from '@shared/employee-rules.ts';
 import {
   Alert,
   Button,
@@ -92,7 +93,10 @@ function UploadForm() {
           value={form.note}
           onChange={(e) => setForm({ ...form, note: e.target.value })}
           error={Boolean(fields.note)}
-          helperText={fields.note ?? 'Why these changes are being made (at least 5 characters)'}
+          helperText={
+            fields.note ??
+            `Why these changes are being made (at least ${NOTE_MIN_LENGTH} characters)`
+          }
         />
         <Stack direction="row" spacing={1}>
           <Button

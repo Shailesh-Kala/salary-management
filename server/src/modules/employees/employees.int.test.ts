@@ -5,7 +5,7 @@ import { buildTestApp, fixedClock } from '../../../test/app.ts';
 import { signIn } from '../../../test/auth.ts';
 import { resetDb, testPool } from '../../../test/db.ts';
 import { withTransaction } from '../../db/transaction.ts';
-import { createEmployeeSchema } from './employee.schemas.ts';
+import { createEmployeeSchema } from '../../shared/employee-rules.ts';
 import { employeeRepositories } from './employees.repository.ts';
 import { createEmployeesService } from './employees.service.ts';
 

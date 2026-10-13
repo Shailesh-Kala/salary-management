@@ -1,7 +1,7 @@
 import { AppError } from '../../lib/errors.ts';
 import { sameAmount } from '../../lib/money.ts';
 import { type CurrentState, planChange } from '../employees/changes.ts';
-import { type CreateEmployeeInput, createEmployeeSchema } from '../employees/employee.schemas.ts';
+import { type CreateEmployeeInput, createEmployeeSchema } from '../../shared/employee-rules.ts';
 import type { Snapshot } from '../employees/employees.repository.ts';
 import { employeeStatus } from '../employees/status.ts';
 import { type ImportForm, TEMPLATE_HEADER } from './upload.ts';

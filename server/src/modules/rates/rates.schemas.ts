@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDate } from '../employees/employee.schemas.ts';
+import { isoDate } from '../../shared/employee-rules.ts';
 
 // Fits NUMERIC(18,6): plain decimal, up to 6 places.
 const PLAIN_RATE = /^\d{1,12}(\.\d{1,6})?$/;

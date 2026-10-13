@@ -1,3 +1,4 @@
+import { NOTE_MAX_LENGTH, NOTE_MIN_LENGTH } from '@shared/employee-rules.ts';
 import {
   Alert,
   Button,
@@ -79,8 +80,8 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
   const canSave =
     form.changeType !== '' &&
     form.effectiveDate !== '' &&
-    noteLength >= 5 &&
-    noteLength <= 1000 &&
+    noteLength >= NOTE_MIN_LENGTH &&
+    noteLength <= NOTE_MAX_LENGTH &&
     (!relocation ||
       (form.countryCode !== '' && form.baseSalary.trim() !== '' && form.allowances.trim() !== ''));
 
@@ -154,7 +155,7 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
             required: true,
             helperText:
               errors.note ??
-              `Shown in the history, e.g. appreciation or the reason (${noteLength}/1000)`,
+              `Shown in the history, e.g. appreciation or the reason (${noteLength}/${NOTE_MAX_LENGTH})`,
           })}
         </Stack>
       </DialogContent>

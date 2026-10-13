@@ -1,3 +1,5 @@
+import { createEmployeeSchema } from '@shared/employee-rules.ts';
+
 export type EmployeeFormValues = {
   employeeCode: string;
   firstName: string;
@@ -13,55 +15,21 @@ export type EmployeeFormValues = {
 
 export type FormErrors<T> = Partial<Record<keyof T, string>>;
 
-const MAX_TEXT = 100;
-const PLAIN_AMOUNT = /^\d{1,12}(\.\d{1,2})?$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const EMPLOYEE_CODE = /^[A-Za-z0-9_-]{1,20}$/;
-
-const amountFormat = (example: string) =>
-  `Enter a plain number like ${example} or ${example}.50, with no commas or currency symbols`;
+/** What the server receives: blank fields are left out, so required ones are reported missing. */
+export const withoutBlanks = (values: EmployeeFormValues) =>
+  Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ''));
 
 /**
- * Checks the create-employee form before anything is sent, with a message saying what to enter.
- * The server checks the same rules again and stays the authority; its messages are still shown.
+ * Checks the create-employee form with the same schema the server uses (src/shared), so the
+ * rules and their messages cannot differ. Checks that need the database stay on the server and
+ * their messages are shown when they come back.
  */
 export function validateEmployeeForm(form: EmployeeFormValues): FormErrors<EmployeeFormValues> {
+  const result = createEmployeeSchema.safeParse(withoutBlanks(form));
   const errors: FormErrors<EmployeeFormValues> = {};
-  const value = (name: keyof EmployeeFormValues) => form[name].trim();
-
-  const required = (name: keyof EmployeeFormValues, message: string) => {
-    if (value(name) === '') errors[name] = message;
-    return value(name) !== '';
-  };
-  const text = (name: keyof EmployeeFormValues, message: string) => {
-    if (required(name, message) && value(name).length > MAX_TEXT) {
-      errors[name] = `Use at most ${MAX_TEXT} characters`;
-    }
-  };
-
-  if (
-    required('employeeCode', 'Enter an employee code, like EMP-00001') &&
-    !EMPLOYEE_CODE.test(value('employeeCode'))
-  ) {
-    errors.employeeCode = 'Use only letters, digits, - or _ (up to 20 characters)';
-  }
-  text('firstName', 'Enter the first name');
-  text('lastName', 'Enter the last name');
-  if (required('email', 'Enter the work email') && !EMAIL.test(value('email'))) {
-    errors.email = 'Enter a valid email address, like name@company.com';
-  }
-  text('jobTitle', 'Enter the job title');
-  text('department', 'Enter the department');
-  required('countryCode', 'Choose a country');
-  required('hireDate', 'Choose the hire date');
-
-  if (required('baseSalary', 'Enter the annual base salary')) {
-    if (!PLAIN_AMOUNT.test(value('baseSalary'))) errors.baseSalary = amountFormat('1800000');
-    else if (Number(value('baseSalary')) === 0)
-      errors.baseSalary = 'Base salary must be greater than 0';
-  }
-  if (value('allowances') !== '' && !PLAIN_AMOUNT.test(value('allowances'))) {
-    errors.allowances = amountFormat('200000');
+  for (const issue of result.error?.issues ?? []) {
+    const field = issue.path[0] as keyof EmployeeFormValues;
+    errors[field] ??= issue.message;
   }
   return errors;
 }

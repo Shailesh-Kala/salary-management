@@ -1,3 +1,4 @@
+import { NOTE_MAX_LENGTH, NOTE_MIN_LENGTH } from '@shared/employee-rules.ts';
 import {
   Alert,
   Button,
@@ -50,7 +51,9 @@ export function WithdrawExitDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             error={Boolean(fields.note)}
-            helperText={fields.note ?? `Why the exit is withdrawn (${noteLength}/1000)`}
+            helperText={
+              fields.note ?? `Why the exit is withdrawn (${noteLength}/${NOTE_MAX_LENGTH})`
+            }
             multiline
             minRows={2}
             required
@@ -63,7 +66,7 @@ export function WithdrawExitDialog({
         <Button
           variant="contained"
           onClick={() => save.mutate({ version: employee.version, note })}
-          disabled={noteLength < 5 || noteLength > 1000 || save.isPending}
+          disabled={noteLength < NOTE_MIN_LENGTH || noteLength > NOTE_MAX_LENGTH || save.isPending}
         >
           Withdraw
         </Button>

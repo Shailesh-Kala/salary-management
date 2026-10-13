@@ -3,10 +3,10 @@ import type { z } from 'zod';
 import './zod-messages.ts';
 import {
   changeEventSchema,
-  createEmployeeSchema,
   exitSchema,
   listEmployeesQuery,
 } from '../modules/employees/employee.schemas.ts';
+import { createEmployeeSchema } from './employee-rules.ts';
 import { insightsQuery } from '../modules/insights/insights.schemas.ts';
 import { updateRateSchema } from '../modules/rates/rates.schemas.ts';
 

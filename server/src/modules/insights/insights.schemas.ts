@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { CHANGE_TYPES, countryCode, isoDate } from '../employees/employee.schemas.ts';
+import { CHANGE_TYPES } from '../employees/employee.schemas.ts';
+import { countryCode, isoDate } from '../../shared/employee-rules.ts';
 import { currencyCode } from '../rates/rates.schemas.ts';
 
 export const insightsQuery = z.object({

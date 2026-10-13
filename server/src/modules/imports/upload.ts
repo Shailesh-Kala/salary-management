@@ -1,7 +1,7 @@
 import { parse } from 'csv-parse/sync';
 import { z } from 'zod';
 import { AppError, invalidField } from '../../lib/errors.ts';
-import { isoDate, note } from '../employees/employee.schemas.ts';
+import { isoDate, note } from '../../shared/employee-rules.ts';
 
 /** Columns of the import template, in order (the export starts with the same ones). */
 export const TEMPLATE_HEADER = [

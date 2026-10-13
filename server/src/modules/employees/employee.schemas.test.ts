@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmployeeSchema } from './employee.schemas.ts';
+import { createEmployeeSchema } from '../../shared/employee-rules.ts';
 
 const valid = {
   employeeCode: ' emp-00001 ',

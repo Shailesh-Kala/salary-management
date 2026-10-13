@@ -14,7 +14,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../api/client.ts';
 import { type EmployeeDetail, fieldErrors, useFilterOptions } from '../api/employees.ts';
-import { type FormErrors, validateEmployeeForm } from '../lib/validation.ts';
+import { type FormErrors, validateEmployeeForm, withoutBlanks } from '../lib/validation.ts';
 
 const EMPTY = {
   employeeCode: '',
@@ -45,7 +45,7 @@ export function EmployeeFormPage() {
     mutationFn: (values: Form) =>
       api<EmployeeDetail>('/employees', {
         method: 'POST',
-        body: Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim() !== '')),
+        body: withoutBlanks(values),
       }),
     onSuccess: (employee) => {
       queryClient.setQueryData(['employee', employee.id], employee);
