@@ -153,7 +153,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - INR can't be changed
       - rate ≤ 0 → 400
       - a USD → EUR conversion in the list matches the exact expected value
-21. [ ] **Exchange rates page:** list, edit, history.
+21. [x] **Exchange rates page:** list, edit, history.
     - RTL test: saving sends the PUT and refreshes the rate, its "as of" date and the history.
 
     ✅ *Usable: HR keeps rates current, with an audit trail.*

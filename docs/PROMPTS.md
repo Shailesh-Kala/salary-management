@@ -520,3 +520,13 @@ next
 ```
 
 **Response:** TDD: failing unit tests for pure `planRateChange` (old → new values, INR fixed at 1, no future rate date, unchanged rejected) and the rate schema (> 0, ≤ 6 decimals); integration tests for `GET /api/countries`, `GET /api/exchange-rates`, `PUT /api/exchange-rates/:currency` (rate + date + who, history row in the same transaction), immediate effect on conversions (EUR → USD = 68,800.00 with USD at 90), history filtered by currency newest first, INR/zero/future rejections writing no history, 404 for unknown currency, and the append-only trigger. Implemented the `rates` module and migration `0003`; migrated the app DB. 282 tests pass.
+
+---
+
+## 36. Phase 3 — Task 21: Exchange rates page
+
+```text
+next
+```
+
+**Response:** TDD: failing RTL tests (rates listed with dates and "Initial snapshot", INR shown as fixed base currency with no edit, empty-history message; editing USD posts `{inrPerUnit, asOf}` and the table and rate history refresh with "88.75 → 90" and "2026-10-01 → 2026-10-12"; server field error shown in the dialog; app-bar navigation). Then `/exchange-rates` page, edit dialog (refreshes rates, history and the employee list), `formatRate`, and Employees / Exchange rates links in the app bar. 286 tests pass. Slice G done.
