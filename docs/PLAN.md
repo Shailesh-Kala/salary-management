@@ -220,7 +220,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a throwing handler is retried with backoff, then marked `failed` after 3 attempts
       - a `running` job with an expired lease is re-claimed
       - two concurrent claims never get the same job
-33. [ ] **Import template + upload checks + single active import:** migration for `imports` and `import_rows`.
+33. [x] **Import template + upload checks + single active import:** migration for `imports` and `import_rows`.
     - Unit tests: header match, type, size and row-count checks; required change type, date and note.
     - Integration tests:
       - the template has the header + 3 `EXAMPLE-*` rows

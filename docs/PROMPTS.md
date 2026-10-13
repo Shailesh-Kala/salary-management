@@ -654,3 +654,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests on a fixed clock (job runs with its payload and completes; delayed job not run before `run_after`; failing job retried at +10 s, +20 s then failed after 3 attempts; job of a dead worker re-claimed after its 5-minute lease; abandoned last attempt failed without re-running; unknown type failed at once; concurrent claims never share a job; worker loop polls until stopped). Implemented migration `0005` (jobs), `createQueue` (SKIP LOCKED claim, lease, backoff, all times from the clock) and `createWorker` (`runOnce`, polling loop, stop waits for the current job), and graceful shutdown in `main.ts` — verified with a real SIGTERM (exit 0). 384 tests pass.
+
+---
+
+## 49. Phase 3 — Task 33: Import template, upload checks, one active import
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests for `checkUpload` (row count; BOM/header case/blank lines tolerated; missing file, non-CSV, header only, missing/unknown columns, broken CSV, > 20,000 rows, > 5 MB → 413) and the import form (relocation not allowed as an import-wide type); integration tests for the template (header + 3 `EXAMPLE-*` rows), a valid upload (202, stored, `import_validate` queued), rejections that store and queue nothing, a 413, and T10 (409 with the active import's id while validating/awaiting confirmation/applying; accepted after it ends). Implemented migration `0006` (imports, import_rows, partial unique index `one_active_import`), the upload service (store + enqueue in one transaction, unique-index violation → 409), multer routes and multer error mapping. 408 tests pass.
