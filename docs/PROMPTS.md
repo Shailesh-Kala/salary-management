@@ -612,3 +612,13 @@ next
 ```
 
 **Response:** TDD: failing tests for `spreadsheetSafe` (= + - @ tab CR prefixed) and for `GET /api/exports/employees` (CSV: UTF-8 with BOM, exact header + `annual_salary_<currency>`, rows, formula escaping, filters and currency; Excel: one sheet, frozen header, numbers and dates as typed cells; an `exports` audit row with filters and row count; 400 for unknown format). Cleared an npm audit advisory with a `uuid` override for exceljs (D-048). Implemented migration `0004` (exports), column mapping, a service that audits then yields 1,000-row batches, CSV/Excel streaming, and an error-handler guard for failures after the response has started. Measured 10k rows: CSV 0.41 s, Excel 0.66 s. 350 tests pass.
+
+---
+
+## 45. Phase 3 — Task 30: Direct PDF export
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests on 1,001 seeded employees (≤ 1,000 rows → multi-page PDF named `employees-<date>.pdf`, audited; the full list → 422 `EXPORT_TOO_LARGE` with row count and limit, nothing audited; CSV still fine). Implemented a landscape A4 list PDF (filters line, rates date, header repeated per page, "Page x of y"), the 1,000-row check before rendering, and shared `lib/pdf.ts` helpers now also used by the slip PDF. Checked real output visually (Singapore Finance, 2 pages) and a 422 on the full 10k list. Raised: en-IN digit grouping is applied to non-INR currencies too. 357 tests pass.
