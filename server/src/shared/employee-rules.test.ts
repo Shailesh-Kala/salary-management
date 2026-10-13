@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createEmployeeSchema, nonNegativeAmount, positiveAmount } from './employee-rules.ts';
@@ -40,6 +41,30 @@ describe('shared files', () => {
 
     expect(files).toContain('employee-rules.ts');
     expect(imports.filter(([, from]) => from !== 'zod' && !from!.startsWith('./'))).toEqual([]);
+  });
+});
+
+describe('zod in the server and the web app', () => {
+  const root = path.join(import.meta.dirname, '../../..');
+  const pinned = (workspace: string) =>
+    JSON.parse(readFileSync(path.join(root, workspace, 'package.json'), 'utf8')).dependencies.zod;
+
+  // The message map sets zod's global config, so a second copy would silently lose the messages
+  // wherever the other copy is used.
+  it('are one exact version, so the shared schema runs on the same zod as the web code', () => {
+    expect(pinned('server')).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(pinned('web')).toBe(pinned('server'));
+  });
+
+  it('resolve to one installed copy from the shared folder, the server and the web code', () => {
+    const resolveFrom = (file: string) => createRequire(path.join(root, file)).resolve('zod');
+
+    expect(resolveFrom('web/src/lib/validation.ts')).toBe(
+      resolveFrom('server/src/shared/employee-rules.ts'),
+    );
+    expect(resolveFrom('server/src/app.ts')).toBe(
+      resolveFrom('server/src/shared/employee-rules.ts'),
+    );
   });
 });
 
