@@ -88,6 +88,20 @@ export function exportRepositories(db: Pool | PoolClient) {
         )
       ).rows[0] ?? null,
 
+    /** The user's emailed exports, newest first (the files themselves are not loaded). */
+    listEmailed: async (userId: string, limit: number) =>
+      (
+        await db.query(
+          `SELECT id, status, row_count AS "rowCount", created_at AS "createdAt",
+                  expires_at AS "expiresAt", deleted_at AS "deletedAt", error
+             FROM exports
+            WHERE requested_by = $1 AND delivery = 'email'
+            ORDER BY created_at DESC, id DESC
+            LIMIT $2`,
+          [userId, limit],
+        )
+      ).rows,
+
     readFile: async (id: string) =>
       (
         await db.query<{ file: Buffer | null; fileName: string }>(

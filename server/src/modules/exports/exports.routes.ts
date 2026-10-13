@@ -75,6 +75,10 @@ export function exportRoutes(exports: ExportsService) {
     await (format === 'csv' ? streamCsv(res, result) : streamXlsx(res, result));
   });
 
+  routes.get('/exports', async (req, res) => {
+    res.json(await exports.listEmailed(req.user!));
+  });
+
   routes.get('/exports/:id/download', async (req, res) => {
     const id = z.uuid().safeParse(req.params.id);
     if (!id.success) throw new AppError('NOT_FOUND', 404, 'Export not found');

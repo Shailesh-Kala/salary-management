@@ -15,6 +15,9 @@ const BATCH_SIZE = 1000;
 /** A PDF of more rows isn't readable and is slow to build; bigger lists go by CSV/Excel or email. */
 export const PDF_ROW_LIMIT = 1000;
 
+/** How many of a user's emailed exports the list shows. */
+const RECENT_EXPORTS = 50;
+
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export function createExportsService(deps: {
@@ -69,6 +72,10 @@ export function createExportsService(deps: {
       if (!stored?.file) return expired(); // deleted between the check and the read
       await deps.repos.recordDownload(id, actor.id, 'downloaded', now);
       return { filename: stored.fileName, file: stored.file };
+    },
+
+    async listEmailed(actor: AuthUser) {
+      return { items: await deps.repos.listEmailed(actor.id, RECENT_EXPORTS) };
     },
 
     /** Queues a PDF of any size to be built in the background and emailed to the requester. */
