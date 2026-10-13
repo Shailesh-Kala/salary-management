@@ -108,7 +108,19 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
       }),
     ),
   );
-  api.use(exportRoutes(createExportsService({ clock, employees, repos: exportRepositories(db) })));
+  api.use(
+    exportRoutes(
+      createExportsService({
+        clock,
+        employees,
+        repos: exportRepositories(db),
+        inTransaction: (fn) =>
+          withTransaction(db, (client) =>
+            fn({ exports: exportRepositories(client), queue: createQueue(client, clock) }),
+          ),
+      }),
+    ),
+  );
   api.use(slipRoutes(createSlipsService({ clock, repos: slipRepositories(db) })));
   api.use(
     insightRoutes(

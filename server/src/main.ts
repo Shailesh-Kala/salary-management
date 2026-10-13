@@ -6,6 +6,7 @@ import { jobHandlers } from './jobs/handlers.ts';
 import { createQueue } from './jobs/queue.ts';
 import { createWorker } from './jobs/worker.ts';
 import { createClock } from './lib/clock.ts';
+import { createSmtpMailer } from './lib/mailer.ts';
 
 const config = loadConfig(process.env);
 const logger = pino();
@@ -14,7 +15,12 @@ const clock = createClock(config.APP_TIMEZONE);
 
 const worker = createWorker({
   queue: createQueue(db, clock),
-  handlers: jobHandlers({ db, clock }),
+  handlers: jobHandlers({
+    db,
+    clock,
+    mailer: createSmtpMailer(config),
+    appBaseUrl: config.APP_BASE_URL,
+  }),
   logger,
 });
 const server = createApp({ logger, db, clock, config }).listen(config.PORT, () => {

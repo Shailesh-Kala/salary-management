@@ -13,6 +13,9 @@ describe('loadConfig', () => {
       PORT: 3000,
       COOKIE_SECURE: true,
       CORS_ORIGIN: 'http://localhost:5173',
+      APP_BASE_URL: 'http://localhost:5173',
+      SMTP_PORT: 2525,
+      SMTP_FROM: 'Salary Management <no-reply@acme.local>',
       APP_TIMEZONE: 'Asia/Kolkata',
       ...required,
     });
@@ -25,6 +28,21 @@ describe('loadConfig', () => {
       NODE_ENV: 'production',
       PORT: 8080,
       COOKIE_SECURE: false,
+    });
+  });
+
+  it('reads the email settings, all optional', () => {
+    const env = {
+      ...required,
+      SMTP_HOST: 'sandbox.smtp.mailtrap.io',
+      SMTP_PORT: '587',
+      SMTP_USER: 'u',
+    };
+
+    expect(loadConfig(env)).toMatchObject({
+      SMTP_HOST: 'sandbox.smtp.mailtrap.io',
+      SMTP_PORT: 587,
+      SMTP_USER: 'u',
     });
   });
 

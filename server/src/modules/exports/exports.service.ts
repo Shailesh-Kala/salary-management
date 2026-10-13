@@ -1,3 +1,4 @@
+import type { Queue } from '../../jobs/queue.ts';
 import type { Clock } from '../../lib/clock.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
@@ -20,8 +21,26 @@ export function createExportsService(deps: {
   clock: Clock;
   employees: EmployeesService;
   repos: ExportRepos;
+  /** Export repositories and a queue on one transaction, so the job is queued only if stored. */
+  inTransaction: <T>(fn: (tx: { exports: ExportRepos; queue: Queue }) => Promise<T>) => Promise<T>;
 }) {
   return {
+    /** Queues a PDF of any size to be built in the background and emailed to the requester. */
+    async requestEmailed(filters: ExportFilters, actor: AuthUser) {
+      const { total } = await deps.employees.list({ ...filters, page: 1, pageSize: 1 });
+      return deps.inTransaction(async ({ exports, queue }) => {
+        const exportId = await exports.queueEmailed({
+          requestedBy: actor.id,
+          format: 'pdf',
+          filters,
+          rowCount: total,
+          createdAt: deps.clock.now(),
+        });
+        await queue.enqueue('export_pdf', { exportId });
+        return { exportId };
+      });
+    },
+
     /**
      * Audits the export (before any data is sent, so abandoned downloads are recorded too) and
      * returns the rows in batches, so memory stays flat however many employees match.

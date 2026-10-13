@@ -12,6 +12,8 @@ const exportQuery = listEmployeesQuery
   .omit({ page: true, pageSize: true })
   .extend({ format: z.enum(['csv', 'xlsx', 'pdf']) });
 
+const emailedExportBody = listEmployeesQuery.omit({ page: true, pageSize: true });
+
 const CONTENT_TYPES = {
   csv: 'text/csv; charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -70,6 +72,11 @@ export function exportRoutes(exports: ExportsService) {
     }
     res.status(200).set(headers);
     await (format === 'csv' ? streamCsv(res, result) : streamXlsx(res, result));
+  });
+
+  routes.post('/exports/employees/email', async (req, res) => {
+    const filters = emailedExportBody.parse(req.body);
+    res.status(202).json(await exports.requestEmailed(filters, req.user!));
   });
 
   return routes;

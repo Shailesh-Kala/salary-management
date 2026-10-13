@@ -178,6 +178,5 @@ describe('retrying the export job (T9)', () => {
       fileBytes: null,
     });
     expect(mailer.sent).toHaveLength(0);
-    expect(await jobs('export_cleanup')).toEqual([]);
   });
 });

@@ -16,6 +16,14 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   COOKIE_SECURE: z.stringbool().default(true),
   CORS_ORIGIN: z.url().default('http://localhost:5173'),
+  /** The web app's origin; links in emails point to it. */
+  APP_BASE_URL: z.url().default('http://localhost:5173'),
+  // Email is optional: without SMTP_HOST the API runs, and emailed exports fail with a clear error.
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(2525),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  SMTP_FROM: z.string().min(1).default('Salary Management <no-reply@acme.local>'),
   APP_TIMEZONE: z.string().default('Asia/Kolkata').refine(isTimeZone, 'Unknown IANA time zone'),
 });
 
