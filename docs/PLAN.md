@@ -168,7 +168,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - default 80% / 120% thresholds flag the expected employees
       - custom thresholds
       - pagination
-24. [ ] **Insights API Q6–Q7:** recent changes; leavers.
+24. [x] **Insights API Q6–Q7:** recent changes; leavers.
     - Tests:
       - date range and `changeType` filter
       - % salary change and old → new title

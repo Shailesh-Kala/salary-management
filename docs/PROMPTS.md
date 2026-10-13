@@ -550,3 +550,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests on a 10-employee fixture (on-notice in, exited out): Q4 min/median/max per title in IN and US in their own currency, 400 without or with an unsupported country; Q5 default 80/120 % flags (ratio, position, peer median and count), custom thresholds with ties ordered by employee code, pagination, department filter not changing peer medians, invalid thresholds 400. Implemented `/insights/by-job-title` and `/insights/outliers` (peer CTE with `percentile_cont`, exact-ratio extremeness ordering). Measured 16–92 ms on the seeded 10k DB. 307 tests pass.
+
+---
+
+## 39. Phase 3 — Task 24: Insights API Q6–Q7
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests — Q6: last-90-days default range, newest first, promotion with old → new title and +20.00 %, relocation IN → US with no % across currencies, hires excluded, wider range + change-type filter (+5.00 %), 400 for a reversed range and for `hire`; Q7: leavers (on notice only) totalled by department and country, listed by last working day, converted to USD (120,281.69), department filter. Implemented `/insights/recent-changes` (`lag()` window over history) and `/insights/leavers` (insights base query gained a `leaving` scope); moved `addDays` to `lib/dates.ts`. Measured 11–175 ms on the seeded DB. 313 tests pass.
