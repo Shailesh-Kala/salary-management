@@ -510,3 +510,13 @@ Continue
 ```
 
 **Response:** TDD: failing RTL tests (on-notice employee shows exit type, dates and "60 days" notice period with only "Withdraw exit"; exited shows no exit actions; record-exit dialog shows "Last working day must be on or after the notice date" and disables Save, then "Notice period: 60 days", posts the exact body and shows "On notice"; withdraw needs a note, posts `{version, note}` and shows "Active"). Then `daysBetween` (UTC), `ExitDialog`, `WithdrawExitDialog`, status-dependent buttons and exit details on the detail page. Refactored all dialogs onto a shared `useEmployeeEvent` hook and `saveErrors` helper. 262 tests pass. Slice F done.
+
+---
+
+## 35. Phase 3 — Task 20: Countries and exchange-rates API
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests for pure `planRateChange` (old → new values, INR fixed at 1, no future rate date, unchanged rejected) and the rate schema (> 0, ≤ 6 decimals); integration tests for `GET /api/countries`, `GET /api/exchange-rates`, `PUT /api/exchange-rates/:currency` (rate + date + who, history row in the same transaction), immediate effect on conversions (EUR → USD = 68,800.00 with USD at 90), history filtered by currency newest first, INR/zero/future rejections writing no history, 404 for unknown currency, and the append-only trigger. Implemented the `rates` module and migration `0003`; migrated the app DB. 282 tests pass.

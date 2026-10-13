@@ -146,7 +146,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR tracks resignations and notice periods.*
 
 ## Slice G: Exchange rates
-20. [ ] **Countries and exchange-rates API with rate history:** `GET /api/countries`, `GET` and `PUT /api/exchange-rates/:currency`, `GET /api/exchange-rates/history`.
+20. [x] **Countries and exchange-rates API with rate history:** `GET /api/countries`, `GET` and `PUT /api/exchange-rates/:currency`, `GET /api/exchange-rates/history`.
     - Tests:
       - PUT updates the rate, `as_of` and `updated_by`, and writes an `exchange_rate_changes` row (old → new, who, when) in the same transaction
       - the rate history is append-only (trigger)
