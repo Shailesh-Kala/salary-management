@@ -39,6 +39,17 @@ const count = async (table: string) =>
   (await testPool.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n;
 
 describe('POST /api/employees', () => {
+  it('explains each missing field in plain words (400)', async () => {
+    const res = await create({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toContainEqual({
+      path: 'baseSalary',
+      message: 'This field is required',
+    });
+    expect(JSON.stringify(res.body)).not.toMatch(/received undefined|Invalid input/);
+  });
+
   it('creates the employee and its hire change, returning 201', async () => {
     const res = await create(NEW_EMPLOYEE);
 

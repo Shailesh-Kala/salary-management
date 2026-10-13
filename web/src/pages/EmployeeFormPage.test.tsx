@@ -65,6 +65,51 @@ describe('create employee page', () => {
     ]);
   });
 
+  it('says what is missing and sends nothing when you submit an empty form', async () => {
+    const { posted } = setup(() => json(201, employeeDetail({ id: 'e-new' })));
+    await screen.findByRole('textbox', { name: /employee code/i });
+
+    await user().click(screen.getByRole('button', { name: /create employee/i }));
+
+    expect(await screen.findByText('Enter an employee code, like EMP-00001')).toBeInTheDocument();
+    expect(screen.getByText('Enter the first name')).toBeInTheDocument();
+    expect(screen.getByText('Enter the work email')).toBeInTheDocument();
+    expect(screen.getByText('Choose a country')).toBeInTheDocument();
+    expect(screen.getByText('Choose the hire date')).toBeInTheDocument();
+    expect(screen.getByText('Enter the annual base salary')).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/received undefined|Invalid input/);
+    expect(posted).toEqual([]);
+  });
+
+  it('explains a badly typed email and amount, and clears each message once you edit the field', async () => {
+    const { posted } = setup(() => json(201, employeeDetail({ id: 'e-new' })));
+    await fillForm();
+    const email = screen.getByRole('textbox', { name: /email/i });
+    await user().clear(email);
+    await user().type(email, 'asha.verma');
+    const salary = screen.getByRole('textbox', { name: /base salary/i });
+    await user().clear(salary);
+    await user().type(salary, '1,800,000');
+
+    await user().click(screen.getByRole('button', { name: /create employee/i }));
+
+    expect(
+      await screen.findByText('Enter a valid email address, like name@company.com'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Enter a plain number like 1800000 or 1800000.50, with no commas or currency symbols',
+      ),
+    ).toBeInTheDocument();
+    expect(posted).toEqual([]);
+
+    await user().type(email, '@acme.com');
+
+    expect(
+      screen.queryByText('Enter a valid email address, like name@company.com'),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows server validation errors next to the fields', async () => {
     setup(() =>
       json(400, {
