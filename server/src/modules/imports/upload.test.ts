@@ -28,6 +28,14 @@ describe('checkUpload', () => {
     expect(checkUpload(file(csv(header, ROW, '', '')))).toEqual({ rowCount: 1 });
   });
 
+  it('accepts the rejected-rows file as-is (its extra error column is ignored)', () => {
+    expect(
+      checkUpload(file(csv(`${HEADER},error`, `${ROW},base_salary: Must be greater than 0`))),
+    ).toEqual({
+      rowCount: 1,
+    });
+  });
+
   it.each([
     ['no file', undefined, 'Choose a CSV file to upload'],
     [
