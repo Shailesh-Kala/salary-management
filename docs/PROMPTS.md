@@ -765,3 +765,16 @@ Next
 ```
 
 **Response:** Task 41: the README now covers what the app does, setup with every `.env` setting, running (API, web, test inbox), the measured 10,000-employee seed, tests and CI; the Architecture folder tree matches the real code, and the requirements now say job status lives on the Imports and Exports pages (D-055). The demo video link is still a placeholder for you to fill in.
+
+---
+
+## 60. Phase 3 — Fixes after trying the app
+
+```text
+I have run the app and found few things and issues:
+- Export section throwing some error (logs pasted)
+- In the create employee page there isn't proper error messages can we make clear readable error messages on what is expected there
+- Can we write test cases for these as well and analyse if we missed similar cases some other places
+```
+
+**Response:** The export error was your dev database missing migration 0010 (I applied it); the API now refuses to start when migrations are pending. The create form now says what to enter and sends nothing until valid, every server validation message is plain language, mail errors name the setting to fix, and unexpected errors show a reference — all with tests. Your `.env` has `SMTP_HOST=smtp`, which doesn't resolve; set the real Mailtrap host.

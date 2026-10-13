@@ -28,7 +28,7 @@ npm ci
 cp .env.example .env            # then fill in the values below
 createdb salary_management
 createdb salary_management_test
-npm run migrate -w server       # creates tables + countries and exchange-rate snapshot
+npm run migrate -w server       # creates tables + countries and exchange-rate snapshot (re-run after pulling new code)
 npm run user:create -w server -- hr@acme.local "HR Manager"   # prints the password once
 ```
 
@@ -54,7 +54,7 @@ npm run dev -w server           # API on http://localhost:3000, with the backgro
 npm run dev -w web              # app on http://localhost:5173 (proxies /api to the API)
 ```
 
-Open http://localhost:5173 and sign in. The job worker (imports, emailed exports, cleanup) runs inside the API process and stops cleanly on SIGTERM/SIGINT. `GET /health` reports API and database status.
+The API refuses to start while migrations are pending and prints the command to run. Open http://localhost:5173 and sign in. The job worker (imports, emailed exports, cleanup) runs inside the API process and stops cleanly on SIGTERM/SIGINT. `GET /health` reports API and database status.
 
 ## Seed (10,000 employees)
 ```bash
