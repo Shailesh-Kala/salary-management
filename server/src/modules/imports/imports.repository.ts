@@ -69,6 +69,24 @@ export function importRepositories(db: Pool | PoolClient) {
         )
       ).rows[0] ?? null,
 
+    /** Import history, newest first. */
+    list: async (page: number, pageSize: number) => {
+      const { rows: items } = await db.query(
+        `SELECT i.id, i.status, i.file_name AS "fileName", i.change_type AS "changeType",
+                i.effective_date AS "effectiveDate", i.row_count AS "rowCount", i.counts,
+                i.created_at AS "createdAt", i.finished_at AS "finishedAt",
+                json_build_object('id', u.id, 'name', u.name) AS "uploadedBy"
+           FROM imports i JOIN hr_users u ON u.id = i.uploaded_by
+          ORDER BY i.created_at DESC, i.id DESC
+          LIMIT $1 OFFSET $2`,
+        [pageSize, (page - 1) * pageSize],
+      );
+      const { rows } = await db.query<{ total: number }>(
+        'SELECT count(*)::int AS total FROM imports',
+      );
+      return { items, total: rows[0]!.total };
+    },
+
     rejectedRows: async (id: string, limit?: number) =>
       (
         await db.query<{

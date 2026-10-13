@@ -26,7 +26,7 @@ async function uploadAndCancel(name: string) {
   req
     .field('changeType', 'annual_review')
     .field('effectiveDate', '2026-10-01')
-    .field('note', 'FY26');
+    .field('note', 'FY26 annual review');
   const { body } = await req.attach('file', Buffer.from(FILE), name);
   await request(app).post(`/api/imports/${body.id}/cancel`).set('Cookie', cookie);
   return body.id as string;

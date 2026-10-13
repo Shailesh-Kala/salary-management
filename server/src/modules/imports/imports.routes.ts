@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../../lib/errors.ts';
 import multer from 'multer';
 import type { ImportsService } from './imports.service.ts';
-import { importFormSchema, MAX_FILE_BYTES } from './upload.ts';
+import { importFormSchema, importHistoryQuery, MAX_FILE_BYTES } from './upload.ts';
 
 // In memory: files are at most 5 MB and are stored in the database, never on disk.
 const singleFile = multer({
@@ -25,6 +25,11 @@ export function importRoutes(imports: ImportsService) {
       .set('Content-Type', 'text/csv; charset=utf-8')
       .set('Content-Disposition', 'attachment; filename="employee-import-template.csv"')
       .send(imports.template());
+  });
+
+  routes.get('/imports', async (req, res) => {
+    const { page, pageSize } = importHistoryQuery.parse(req.query);
+    res.json(await imports.list(page, pageSize));
   });
 
   routes.get('/imports/:id', async (req, res) => {

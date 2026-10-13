@@ -75,6 +75,12 @@ export function createImportsService({ clock, repos, inTransaction }: ImportsSer
       return this.get(id);
     },
 
+    list: async (page: number, pageSize: number) => ({
+      ...(await repos.list(page, pageSize)),
+      page,
+      pageSize,
+    }),
+
     /** Status, counts and the first rejected rows with their reasons. */
     async get(id: string) {
       const details = await repos.details(id);

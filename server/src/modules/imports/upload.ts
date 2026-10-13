@@ -29,6 +29,11 @@ export const importFormSchema = z.strictObject({
 
 export type ImportForm = z.infer<typeof importFormSchema>;
 
+export const importHistoryQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
 /** Parses CSV text (BOM and blank lines allowed); rows may have any length, checked per row later. */
 export const parseCsv = (content: Buffer | string) =>
   parse(content, { bom: true, skip_empty_lines: true, relax_column_count: true }) as string[][];
