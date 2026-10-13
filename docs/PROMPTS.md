@@ -715,3 +715,13 @@ next
 ```
 
 **Response:** Task 36: previews expire after 24 h (confirm returns 410 even before the expiry job runs, and an overdue preview never blocks a new upload — T12); a database trigger clears the file and raw rows whenever an import ends, and an import whose job keeps failing is now marked failed (T13).
+
+---
+
+## 55. Phase 3 — Task 37: Imports UI
+
+```text
+next
+```
+
+**Response:** Task 37: an Imports page (template download, upload form, history from the new `GET /api/imports`, a link to the running import on 409) and an import page that polls, shows the preview counts and deadline with Import valid rows / Cancel, rejected rows with their download, the final report, and "preview expired — upload again".

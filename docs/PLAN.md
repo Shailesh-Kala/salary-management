@@ -260,7 +260,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     - Integration tests:
       - **T12:** clock 24 h past ready → expire job sets `expired`; confirm → 410 (also before the job runs); nothing is written; a new upload is accepted; running the job again is a no-op
       - **T13:** after completed, cancelled, failed or expired, `imports.file` and every `import_rows.raw` are NULL, while row number, code, outcome and errors remain
-37. [ ] **Imports UI:**
+37. [x] **Imports UI:**
     - template download, upload form, status polling
     - preview counts with **Import valid rows / Cancel** and the expiry time
     - rejected-rows download (while in preview)
