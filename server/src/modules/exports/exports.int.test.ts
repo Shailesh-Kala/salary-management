@@ -110,6 +110,13 @@ describe('GET /api/exports/employees?format=csv', () => {
     });
   });
 
+  it('writes amounts as plain numbers with no digit grouping, ready to re-import', async () => {
+    const [, , second] = csvRows(await download('format=csv&sort=employeeCode'));
+
+    expect(second!.slice(8, 10)).toEqual(['150000.00', '10000.00']);
+    expect(second![13]).toBe('14200000.00');
+  });
+
   it('escapes cells that a spreadsheet would run as a formula', async () => {
     const [, , second] = csvRows(await download('format=csv&sort=employeeCode'));
 
@@ -144,6 +151,8 @@ describe('GET /api/exports/employees?format=xlsx', () => {
     expect(sheet.getRow(1).values).toEqual([undefined, ...HEADER, 'annual_salary_inr']);
     const first = sheet.getRow(2);
     expect(first.getCell(9).value).toBe(1800000); // base salary as a number
+    expect(first.getCell(9).numFmt).toBe('0.00'); // plain number: no digit grouping in files
+    expect(first.getCell(14).numFmt).toBe('0.00');
     expect(first.getCell(14).value).toBe(2000000); // converted annual salary as a number
     expect(first.getCell(8).value).toEqual(new Date('2024-04-01T00:00:00Z')); // hire date as a date
     expect(sheet.getRow(3).getCell(2).value).toBe(`'=HYPERLINK("http://evil.example","click")`);
