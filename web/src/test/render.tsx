@@ -31,7 +31,7 @@ export const json = (status: number, body?: unknown) =>
 
 /**
  * Stubs fetch with handlers keyed by "METHOD /path" (query string ignored); each handler gets
- * the full URL and the parsed JSON body. Any other request fails the test.
+ * the full URL and the parsed JSON body (or the FormData of an upload). Any other request fails the test.
  */
 export function mockApi(routes: Record<string, (url: URL, body: unknown) => Response>) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -39,7 +39,9 @@ export function mockApi(routes: Record<string, (url: URL, body: unknown) => Resp
     const key = `${init?.method ?? 'GET'} ${url.pathname}`;
     const handler = routes[key];
     if (!handler) throw new Error(`Unexpected request: ${key}`);
-    return handler(url, init?.body ? JSON.parse(String(init.body)) : undefined);
+    const body =
+      init?.body instanceof FormData ? init.body : init?.body && JSON.parse(String(init.body));
+    return handler(url, body);
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
