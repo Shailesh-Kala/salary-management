@@ -57,6 +57,9 @@ export type NewChange = {
   snapshot: Snapshot;
   changedBy: string;
   changedAt: Date;
+  /** Set for changes made by an import; unique together, so a retry can't record a row twice. */
+  importId?: string;
+  importRowNumber?: number;
 };
 
 const EMPLOYEE_COLUMNS = `id, employee_code AS "employeeCode", first_name AS "firstName",
@@ -104,6 +107,19 @@ const SORT_SQL: Record<ListEmployeesQuery['sort'], string[]> = {
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
 const COUNTRY_COLUMNS = `c.currency_code AS "currencyCode", c.name AS "countryName"`;
+
+// Columns an import may set: profile fields plus everything a change event may set.
+const IMPORT_COLUMNS: Record<string, string> = {
+  firstName: 'first_name',
+  lastName: 'last_name',
+  email: 'email',
+  baseSalary: 'base_salary',
+  allowances: 'allowances',
+  jobTitle: 'job_title',
+  department: 'department',
+  countryCode: 'country_code',
+  hireDate: 'hire_date',
+};
 
 // Whitelisted columns a change event may set.
 const AUDITED_COLUMNS: Record<AuditedField, string> = {
@@ -264,6 +280,19 @@ export function employeeRepositories(db: Pool | PoolClient) {
           )
         ).rows[0] as EmployeeDetail,
 
+      /** Sets whitelisted fields from an import row and bumps the version. */
+      updateFields: async (id: string, fields: Record<string, string>, now: Date) => {
+        const params: unknown[] = [id, now];
+        const sets = Object.entries(fields).map(
+          ([field, value]) => `${IMPORT_COLUMNS[field]} = $${params.push(value)}`,
+        );
+        await db.query(
+          `UPDATE employees SET ${[...sets, 'version = version + 1', 'updated_at = $2'].join(', ')}
+            WHERE id = $1`,
+          params,
+        );
+      },
+
       /** Returns null when the id is unknown or `version` is stale (optimistic locking). */
       updateProfile: async (
         id: string,
@@ -348,8 +377,8 @@ export function employeeRepositories(db: Pool | PoolClient) {
           `WITH ch AS (
              INSERT INTO employee_changes (employee_id, change_type, effective_date, note, source,
                changes, base_salary, allowances, currency_code, country_code, job_title,
-               department, changed_by, changed_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+               department, changed_by, changed_at, import_id, import_row_number)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              RETURNING *)
            SELECT ${HISTORY_COLUMNS} FROM ch JOIN hr_users u ON u.id = ch.changed_by`,
           [
@@ -367,6 +396,8 @@ export function employeeRepositories(db: Pool | PoolClient) {
             s.department,
             c.changedBy,
             c.changedAt,
+            c.importId ?? null,
+            c.importRowNumber ?? null,
           ],
         );
         return rows[0] as HistoryEntry;

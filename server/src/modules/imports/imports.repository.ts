@@ -5,6 +5,7 @@ import type { ExistingEmployee, RowContext, RowResult } from './validate-rows.ts
 export type ImportRecord = {
   id: string;
   status: string;
+  confirmedBy: string | null;
   fileName: string;
   file: Buffer | null;
   changeType: ImportForm['changeType'];
@@ -44,7 +45,8 @@ export function importRepositories(db: Pool | PoolClient) {
     find: async (id: string) =>
       (
         await db.query<ImportRecord>(
-          `SELECT id, status, file_name AS "fileName", file, change_type AS "changeType",
+          `SELECT id, status, confirmed_by AS "confirmedBy", file_name AS "fileName", file,
+                  change_type AS "changeType",
                   effective_date AS "effectiveDate", note
              FROM imports WHERE id = $1`,
           [id],
@@ -137,6 +139,120 @@ export function importRepositories(db: Pool | PoolClient) {
         ],
       );
     },
+
+    countries: async () =>
+      new Map(
+        (
+          await db.query<{ code: string; currencyCode: string }>(
+            'SELECT code, currency_code AS "currencyCode" FROM countries',
+          )
+        ).rows.map((c) => [c.code, c.currencyCode]),
+      ),
+
+    /**
+     * The row rules' context for one row, from current data: locks the employee (if any) until the
+     * row's transaction ends, so nothing changes between checking and writing.
+     */
+    rowContext: async (
+      form: ImportForm,
+      today: string,
+      code: string,
+      email: string,
+      currencyByCountry: Map<string, string>,
+    ): Promise<RowContext> => {
+      await db.query('SELECT 1 FROM employees WHERE employee_code = $1 FOR UPDATE', [code]);
+      const { rows: employees } = await db.query<ExistingEmployee>(
+        `SELECT e.id, e.employee_code AS "employeeCode", e.first_name AS "firstName",
+                e.last_name AS "lastName", e.email, e.job_title AS "jobTitle", e.department,
+                e.country_code AS "countryCode", c.currency_code AS "currencyCode",
+                e.hire_date AS "hireDate", e.base_salary AS "baseSalary", e.allowances,
+                e.exit_type AS "exitType", e.notice_date AS "noticeDate",
+                e.last_working_day AS "lastWorkingDay", e.version,
+                (SELECT max(effective_date) FROM employee_changes WHERE employee_id = e.id)
+                  AS "latestEffectiveDate",
+                (SELECT min(effective_date) FROM employee_changes
+                  WHERE employee_id = e.id AND change_type <> 'hire') AS "firstNonHireDate"
+           FROM employees e JOIN countries c ON c.code = e.country_code
+          WHERE e.employee_code = $1 OR e.email = $2`,
+        [code, email],
+      );
+      return {
+        form,
+        today,
+        employeesByCode: new Map(
+          employees.filter((e) => e.employeeCode === code).map((e) => [e.employeeCode, e]),
+        ),
+        employeeCodeByEmail: new Map(employees.map((e) => [e.email, e.employeeCode])),
+        currencyByCountry,
+      };
+    },
+
+    /** Rows not yet applied, in file order; finished rows are skipped on a retry (D-020). */
+    pendingRows: async (id: string) =>
+      (
+        await db.query<{
+          rowNumber: number;
+          raw: Record<string, string>;
+          previewOutcome: string;
+          errors: string[];
+        }>(
+          `SELECT row_number AS "rowNumber", raw, preview_outcome AS "previewOutcome", errors
+             FROM import_rows
+            WHERE import_id = $1 AND applied_at IS NULL
+            ORDER BY row_number`,
+          [id],
+        )
+      ).rows,
+
+    recordOutcome: async (
+      id: string,
+      rowNumber: number,
+      outcome: string,
+      errors: string[],
+      now: Date,
+    ) => {
+      await db.query(
+        `UPDATE import_rows SET outcome = $3, errors = $4, applied_at = $5
+          WHERE import_id = $1 AND row_number = $2`,
+        [id, rowNumber, outcome, JSON.stringify(errors), now],
+      );
+    },
+
+    /** Final counts from each row's outcome, merged into the preview counts. */
+    complete: async (id: string, now: Date) => {
+      await db.query(
+        `UPDATE imports
+            SET status = 'completed', finished_at = $2,
+                counts = coalesce(counts, '{}') || (
+                  SELECT jsonb_build_object(
+                    'created', count(*) FILTER (WHERE outcome = 'created'),
+                    'updated', count(*) FILTER (WHERE outcome = 'updated'),
+                    'unchanged', count(*) FILTER (WHERE outcome = 'unchanged'),
+                    'rejected', count(*) FILTER (WHERE outcome = 'rejected'))
+                    FROM import_rows WHERE import_id = $1)
+          WHERE id = $1 AND status = 'applying'`,
+        [id, now],
+      );
+    },
+
+    /** Moves an import from one of `from` to `to`; false if it was in another state. */
+    transition: async (
+      id: string,
+      from: string[],
+      to: string,
+      now: Date,
+      extra: { confirmedBy?: string; finished?: boolean } = {},
+    ) =>
+      (
+        await db.query(
+          `UPDATE imports
+              SET status = $3,
+                  confirmed_by = coalesce($5, confirmed_by),
+                  finished_at = CASE WHEN $6 THEN $4 ELSE finished_at END
+            WHERE id = $1 AND status = ANY($2::text[])`,
+          [id, from, to, now, extra.confirmedBy ?? null, extra.finished ?? false],
+        )
+      ).rowCount === 1,
 
     activeImportId: async () =>
       (

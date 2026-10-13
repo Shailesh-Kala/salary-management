@@ -39,6 +39,14 @@ export function importRoutes(imports: ImportsService) {
       .send(content);
   });
 
+  routes.post('/imports/:id/cancel', async (req, res) => {
+    res.json(await imports.cancel(importId(req)));
+  });
+
+  routes.post('/imports/:id/confirm', async (req, res) => {
+    res.status(202).json(await imports.confirm(importId(req), req.user!));
+  });
+
   routes.post('/imports', singleFile, async (req, res) => {
     const form = importFormSchema.parse(req.body);
     res.status(202).json(await imports.upload(req.file, form, req.user!));

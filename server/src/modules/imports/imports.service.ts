@@ -23,8 +23,46 @@ const isActiveImportConflict = (err: unknown) =>
 export function createImportsService({ clock, repos, inTransaction }: ImportsServiceDeps) {
   const notFound = () => new AppError('NOT_FOUND', 404, 'Import not found');
 
+  /** 404 if the import doesn't exist, otherwise 409: it is in the wrong state for `action`. */
+  const refuse = async (id: string, action: string) => {
+    if (!(await repos.find(id))) throw notFound();
+    throw new AppError('INVALID_STATE', 409, `This import can no longer be ${action}`);
+  };
+
   return {
     template: templateCsv,
+
+    /** Any HR user may cancel while it is validating or waiting; nothing is written (T2). */
+    async cancel(id: string) {
+      const cancelled = await repos.transition(
+        id,
+        ['validating', 'awaiting_confirmation'],
+        'cancelled',
+        clock.now(),
+        { finished: true },
+      );
+      if (!cancelled) await refuse(id, 'cancelled');
+      return this.get(id);
+    },
+
+    /** Starts applying the valid rows in the background; the confirmer is the changes' author. */
+    async confirm(id: string, actor: AuthUser) {
+      const confirmed = await inTransaction(async ({ imports, queue }) => {
+        const moved = await imports.transition(
+          id,
+          ['awaiting_confirmation'],
+          'applying',
+          clock.now(),
+          {
+            confirmedBy: actor.id,
+          },
+        );
+        if (moved) await queue.enqueue('import_apply', { importId: id });
+        return moved;
+      });
+      if (!confirmed) await refuse(id, 'confirmed');
+      return this.get(id);
+    },
 
     /** Status, counts and the first rejected rows with their reasons. */
     async get(id: string) {
