@@ -1,7 +1,7 @@
 import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { logout, type User } from './auth/session.ts';
 
 export function AppLayout({ user, children }: { user: User; children: ReactNode }) {
@@ -19,9 +19,17 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
     <>
       <AppBar position="static">
         <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div">
             Salary Management
           </Typography>
+          <Box component="nav" sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
+            <Button color="inherit" component={Link} to="/employees">
+              Employees
+            </Button>
+            <Button color="inherit" component={Link} to="/exchange-rates">
+              Exchange rates
+            </Button>
+          </Box>
           <Typography variant="body2">{user.name}</Typography>
           <Button color="inherit" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
             Sign out

@@ -9,3 +9,7 @@ export function formatMoney(amount: string, currency: string) {
   }
   return format.format(Number(amount));
 }
+
+/** '88.750000' → '88.75': trailing zeros dropped, up to 6 decimals, en-IN grouping. */
+export const formatRate = (rate: string) =>
+  Number(rate).toLocaleString('en-IN', { maximumFractionDigits: 6 });
