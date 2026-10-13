@@ -78,7 +78,7 @@ describe('import page', () => {
     await user().click(await screen.findByRole('button', { name: /import 3 valid rows/i }));
 
     await waitFor(() => expect(calls).toEqual(['confirm']));
-    expect(await screen.findByText(/importing/i)).toBeInTheDocument();
+    expect(await screen.findByText(/importing the valid rows/i)).toBeInTheDocument();
   });
 
   it('cancels the import with "Cancel import"', async () => {

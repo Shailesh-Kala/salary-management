@@ -4,6 +4,8 @@ import { EmployeeDetailPage } from './pages/EmployeeDetailPage.tsx';
 import { EmployeeFormPage } from './pages/EmployeeFormPage.tsx';
 import { EmployeesPage } from './pages/EmployeesPage.tsx';
 import { ExchangeRatesPage } from './pages/ExchangeRatesPage.tsx';
+import { ImportPage } from './pages/ImportPage.tsx';
+import { ImportsPage } from './pages/ImportsPage.tsx';
 import { InsightsPage } from './pages/InsightsPage.tsx';
 import { SlipPage } from './pages/SlipPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
@@ -19,6 +21,8 @@ export function AppRoutes() {
         <Route path="/employees/:id/slip" element={<SlipPage />} />
         <Route path="/exchange-rates" element={<ExchangeRatesPage />} />
         <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/imports" element={<ImportsPage />} />
+        <Route path="/imports/:id" element={<ImportPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/employees" replace />} />
     </Routes>

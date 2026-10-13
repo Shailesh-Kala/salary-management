@@ -23,14 +23,15 @@ export class ApiError extends Error {
 }
 
 async function request(path: string, init: { method?: string; body?: unknown } = {}) {
-  const hasBody = init.body !== undefined;
+  // FormData (file uploads) is sent as multipart; the browser sets its Content-Type.
+  const json = init.body !== undefined && !(init.body instanceof FormData);
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
       method: init.method ?? 'GET',
       credentials: 'include',
-      headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
-      body: hasBody ? JSON.stringify(init.body) : undefined,
+      headers: json ? { 'Content-Type': 'application/json' } : undefined,
+      body: json ? JSON.stringify(init.body) : (init.body as FormData | undefined),
     });
   } catch {
     throw new ApiError(0, {
