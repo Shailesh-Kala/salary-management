@@ -295,4 +295,4 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: complete feature set.*
 
 ## Slice M: Wrap-up
-41. [ ] **README and docs pass:** setup (Node via `.nvmrc`, `.env`, create DBs, migrate), run (API + web + Mailpit), seed with measured timing, test, demo video link, links to all docs. Final check that DECISIONS and PROMPTS are up to date.
+41. [x] **README and docs pass:** setup (Node via `.nvmrc`, `.env`, create DBs, migrate), run (API + web + Mailpit), seed with measured timing, test, demo video link, links to all docs. Final check that DECISIONS and PROMPTS are up to date.

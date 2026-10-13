@@ -28,7 +28,7 @@ Replace ACME's Excel-based salary tracking with a web application in which the H
 | F6 | Monthly salary slip (gross pay breakdown) | ✅ |
 | F7 | Change history and audit log (salary, job title, department, lifecycle) | ✅ |
 | F8 | Import (CSV, background job with accepted/rejected report) and export (CSV, Excel, PDF; large PDFs by background job and email) | ✅ |
-| F9 | Background job queue (PostgreSQL-backed) and job status page | ✅ |
+| F9 | Background job queue (PostgreSQL-backed); job status shown on the Imports and Exports pages (D-055) | ✅ |
 
 ## 4. In-scope features
 
@@ -214,7 +214,7 @@ A row that changes both audited and profile fields writes the profile fields **a
     - requires an HR login, and **works only for the user who requested the export**. Anyone else gets `403`, even another HR user.
     - **expires after 24 hours**, after which it returns `410 Gone`.
   - **File deletion:** when the link expires, the generated file is **deleted**. A cleanup job is scheduled for the expiry time when the file is created.
-  - The export also appears on the requester's job status page with the same download link and the same rules.
+  - The export also appears on the requester's **My exports** page with the same download link and the same rules (D-055).
 - **Formula-injection guard:** in CSV and Excel output, any cell starting with `= + - @` is escaped.
 - **Audit:** every export writes an audit entry recording who exported, the format, the filters and the row count. **Every download of an emailed export** is also recorded (who, when, which export), and so are refused download attempts.
 
@@ -225,10 +225,10 @@ A row that changes both audited and profile fields writes the profile fields **a
 - **Retries never repeat finished work:**
   - **Import validation:** writes nothing to employee data, so re-running it simply rebuilds the preview rows (replaced per row number).
   - **Import apply:** each row's **outcome is saved in the same transaction** as its employee and history changes. On retry, rows that already have a final outcome are **skipped**. A crash therefore never applies a row twice or creates duplicate history entries.
-  - **Large PDF export:** the job records its progress on the export. If the file already exists, it isn't rebuilt. The email is **marked as sent before it is sent** (at most once). If sending fails with an error, the mark is cleared so a retry can try again. A retry therefore never emails the user twice. In the rare case of a hard crash mid-send, the email may be lost, but the download link is still on the job status page.
+  - **Large PDF export:** the job records its progress on the export. If the file already exists, it isn't rebuilt. The email is **marked as sent before it is sent** (at most once). If sending fails with an error, the mark is cleared so a retry can try again. A retry therefore never emails the user twice. In the rare case of a hard crash mid-send, the email may be lost, but the download link is still on the My exports page.
   - **Cleanup:** deleting an already-deleted file is a no-op.
 - **Delayed jobs:** a job can be scheduled to run at a given time. This is used to delete export files at link expiry.
-- **Job status page:** HR sees their jobs with type, status, progress (rows processed for imports), created and finished times, and links to the report or file. The UI polls for status while a job is running.
+- **Job status (D-055):** there is no separate jobs page. Imports show their status, row counts and report on the Imports pages (history, plus a page per import that refreshes while the server is working); emailed exports show their status, expiry and download link on My exports. Both refresh while a job is running. Progress is a status (checking, importing), not a per-row count.
 - **Email:** sent over SMTP using settings from environment variables (host, port, and optional username/password). For local runs, a test inbox such as **Mailtrap Sandbox** or Mailpit captures every email, so nothing reaches a real mailbox.
 
 ## 5. Out of scope (with reasoning)

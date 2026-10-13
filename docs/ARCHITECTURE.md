@@ -348,43 +348,48 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 ## 5. Folder structure
 ```
 salary-management/
-├─ package.json            # npm workspaces: server, web; root scripts lint / format / test
+├─ package.json            # npm workspaces: server, web; root scripts lint / format / typecheck / test
 ├─ eslint.config.js  .prettierrc  .nvmrc  .env.example
 ├─ .github/workflows/ci.yml
 ├─ docs/                   # REQUIREMENTS, ARCHITECTURE, PLAN, DECISIONS, PROMPTS
 ├─ server/
 │  ├─ package.json  tsconfig.json  vitest.config.ts
-│  ├─ migrations/          # 0001_init.sql, 0002_employees.sql, … (node-pg-migrate, SQL)
-│  ├─ scripts/
-│  │  ├─ seed.ts           # deterministic 10k seed, prints timing
-│  │  └─ user.ts           # user:create -- <email> "<name>" | user:reset-password | user:disable | user:enable -- <email>
-│  ├─ test/                # global-setup (migrate test DB), db reset, factories, fake mailer
+│  ├─ migrations/          # 0001_reference-data.sql … 0010_export-downloads.sql (node-pg-migrate, SQL)
+│  ├─ scripts/             # migrate.ts, seed.ts (deterministic 10k seed, prints timing),
+│  │                       # user.ts (create | reset-password | disable | enable)
+│  ├─ test/                # global-setup (migrates the test DB), db reset, factories, fake mailer,
+│  │                       # buildTestApp / fixedClock, sign-in and job-handler helpers
 │  └─ src/
 │     ├─ main.ts           # wires real deps, starts HTTP + worker, graceful shutdown
 │     ├─ app.ts            # createApp(deps) → Express app (no listen; used by Supertest)
 │     ├─ config.ts         # zod-validated env
-│     ├─ db/               # pool.ts, transaction.ts
-│     ├─ lib/              # errors.ts, clock.ts, logger.ts, money.ts, prng.ts, csv-safe.ts
-│     ├─ middleware/       # auth.ts, error-handler.ts, rate-limit.ts, validate.ts
-│     ├─ jobs/             # queue.repository.ts, worker.ts (runOnce + loop)
+│     ├─ db/               # pool.ts, transaction.ts, migrate.ts
+│     ├─ lib/              # errors, clock, money, dates, prng, pdf, mailer, spreadsheet-safe,
+│     │                    # infrastructure-error
+│     ├─ middleware/       # auth.ts, error-handler.ts, rate-limit.ts
+│     ├─ jobs/             # queue.ts, worker.ts (runOnce + loop), handlers.ts (job type → handler)
+│     ├─ seed/             # generate.ts (pure, seeded), seed.ts (batched inserts)
 │     └─ modules/
-│        ├─ auth/          # auth.routes.ts, auth.service.ts, password.ts, users.repository.ts
-│        ├─ employees/     # routes, service, repository, schemas, status.ts, changes.ts
-│        ├─ rates/
-│        ├─ insights/
-│        ├─ slips/         # slip.ts (pure calc), slip-pdf.ts, routes
-│        ├─ imports/       # template, upload checks, row-validator.ts, validate & apply handlers
-│        └─ exports/       # csv/xlsx/pdf writers, email export handler, cleanup handler
+│        ├─ auth/          # routes, service, password, session-tokens, users.repository, user-admin
+│        ├─ employees/     # routes, service, repository, schemas, status, changes, lifecycle
+│        ├─ rates/         # routes, service, repository, schemas, rates (rate-change rules)
+│        ├─ insights/      # routes, service, repository (SQL aggregations), schemas
+│        ├─ slips/         # slip.ts (pure calc), slip-pdf.ts, routes, service, repository
+│        ├─ imports/       # upload checks + template, validate-rows (pure row rules),
+│        │                 # validate-job, apply-job, routes, service, repository
+│        └─ exports/       # columns, list-pdf, routes, service, repository, email-job
 │        # tests sit next to code: *.test.ts (unit) and *.int.test.ts (integration)
 └─ web/
    ├─ package.json  vite.config.ts  index.html
    └─ src/
-      ├─ main.tsx  App.tsx  theme.ts
-      ├─ api/              # fetch client (credentials: include, error-shape parsing), query hooks
-      ├─ components/       # shared UI (MoneyCell, StatusChip, ConfirmDialog, …)
-      └─ pages/            # Login (?next=), Employees, EmployeeDetail, EmployeeForm, Slip,
-                           # Insights, Imports, ImportDetail, Exports, ExportDownload (/exports/:id),
-                           # ExchangeRates
+      ├─ main.tsx  App.tsx (routes)  AppLayout.tsx (app bar)
+      ├─ api/              # client.ts (credentials: include, error shape, file download),
+      │                    # query-client.ts, employees.ts, imports.ts
+      ├─ auth/             # session hooks, RequireAuth (redirects to /login?next=)
+      ├─ components/       # ChangeDialog, ExitDialog, ExportMenu, HistoryList, SelectFilter, …
+      ├─ lib/              # format.ts (money, rates), dates.ts
+      └─ pages/            # Login, Employees, EmployeeDetail, EmployeeForm, Slip, Insights,
+                           # ExchangeRates, Imports, Import, Exports, ExportDownload (/exports/:id)
 ```
 
 ## 6. Security decisions
@@ -469,7 +474,7 @@ APP_TIMEZONE=Asia/Kolkata                   # defines "today" for all date rules
 COOKIE_SECURE=false
 CORS_ORIGIN=http://localhost:5173
 APP_BASE_URL=http://localhost:5173          # SPA origin; email links point to $APP_BASE_URL/exports/:id
-SMTP_HOST=sandbox.smtp.mailtrap.io          # Mailtrap Sandbox test inbox (or Mailpit: localhost:1025, no auth)
+SMTP_HOST=sandbox.smtp.mailtrap.io          # optional (emailed exports fail without it); Mailtrap Sandbox test inbox, or Mailpit: localhost:1025, no auth
 SMTP_PORT=2525
 SMTP_USER=                                  # optional — empty means no SMTP auth
 SMTP_PASS=

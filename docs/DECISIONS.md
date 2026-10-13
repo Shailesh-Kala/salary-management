@@ -340,3 +340,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Keep the error message and add a separate "Email PDF" menu item; make the user click a button on the download page.
 - **Why:** A user who hit the limit is one click from what they wanted. The link in the email should do what it says without another click. Every download is audited, so accidental repeats (focus, refetch) would pollute the trail.
 - **Trade-off:** Opening the link counts as a download even if the browser blocks the file save; "Download again" covers that.
+
+## D-055 — Job status lives on the Imports and Exports pages, not a separate jobs page
+- **What:** The requirements promised one "job status page" listing every job with progress. We built the status where each job's result is used instead: the Imports history and per-import page (status, preview counts, final report, rejected rows) and the My exports page (status, expiry, open link). Both refresh while work is running. Progress is shown as a state (checking rows, importing), not as rows processed.
+- **Alternatives:** A generic Jobs page over the `jobs` table; a progress counter written by the worker.
+- **Why:** HR never works with "jobs"; they work with an import or an export, and each page already links to its report or file. A generic page would show the same information a second time, and a progress counter means extra writes during an import for little value at 20,000 rows.
+- **Trade-off:** No single place to see everything running; a user watching a very large import sees "Importing…" without a percentage.

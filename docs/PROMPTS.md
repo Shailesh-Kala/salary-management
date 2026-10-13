@@ -755,3 +755,13 @@ next
 ```
 
 **Response:** Task 40: a too-large PDF now opens "Email me the PDF" (sent to your own address), a My exports page shows each emailed export's state, and the link in the email opens a page that saves the file; without a session it sends you to sign in and back (T11). Added `GET /api/exports` for the list.
+
+---
+
+## 59. Phase 3 — Task 41: README and docs pass
+
+```text
+Next
+```
+
+**Response:** Task 41: the README now covers what the app does, setup with every `.env` setting, running (API, web, test inbox), the measured 10,000-employee seed, tests and CI; the Architecture folder tree matches the real code, and the requirements now say job status lives on the Imports and Exports pages (D-055). The demo video link is still a placeholder for you to fill in.
