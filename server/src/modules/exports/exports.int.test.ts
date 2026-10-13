@@ -161,7 +161,7 @@ describe('GET /api/exports/employees?format=xlsx', () => {
 
 describe('export audit', () => {
   it('records who exported what, with which filters and how many rows', async () => {
-    await testPool.query('TRUNCATE exports');
+    await testPool.query('TRUNCATE exports CASCADE');
 
     await download('format=csv&country=IN&currency=USD');
 

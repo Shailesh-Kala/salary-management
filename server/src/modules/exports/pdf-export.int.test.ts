@@ -41,7 +41,7 @@ const auditRows = async () =>
 
 describe('GET /api/exports/employees?format=pdf', () => {
   it('renders up to 1,000 rows as a multi-page PDF and audits it', async () => {
-    await testPool.query('TRUNCATE exports');
+    await testPool.query('TRUNCATE exports CASCADE');
 
     const res = await pdf('country=IN');
 
@@ -59,7 +59,7 @@ describe('GET /api/exports/employees?format=pdf', () => {
   });
 
   it('refuses more than 1,000 rows with 422 before rendering or auditing anything', async () => {
-    await testPool.query('TRUNCATE exports');
+    await testPool.query('TRUNCATE exports CASCADE');
 
     const res = await request(app).get('/api/exports/employees?format=pdf').set('Cookie', cookie);
 
