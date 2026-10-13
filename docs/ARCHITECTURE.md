@@ -69,7 +69,8 @@ stateDiagram-v2
   - When the preview is ready, `preview_expires_at = now + 24 h` and an `import_expire` job is scheduled for that time.
   - The job moves a still-`awaiting_confirmation` import to `expired`; otherwise it does nothing.
   - `confirm` also checks `now ≥ preview_expires_at` itself and returns `410`, so expiry never depends on when the job happens to run.
-- **End-of-import clearing (D-031):** the transaction that moves an import to `completed`, `cancelled`, `failed` or `expired` also sets `imports.file = NULL` and `import_rows.raw = NULL`.
+- **End-of-import clearing (D-031):** the transaction that moves an import to `completed`, `cancelled`, `failed` or `expired` also sets `imports.file = NULL` and `import_rows.raw = NULL`, via a `BEFORE UPDATE` trigger on `imports` (D-051).
+- **Jobs that give up:** a handler may define `onGiveUp`; the import jobs use it to mark the import `failed`, so it stops blocking uploads.
 - **Apply** loops over rows that are valid in the preview and have `applied_at IS NULL`, in `row_number` order. **Each row runs in one transaction:**
   1. lock (`SELECT … FOR UPDATE`) or look up the employee
   2. re-validate the row with the **row rules** (REQUIREMENTS §4.8), the same pure function the preview uses
@@ -227,7 +228,7 @@ erDiagram
 | status | `validating` \| `awaiting_confirmation` \| `applying` \| `completed` \| `cancelled` \| `expired` \| `failed` |
 | preview_expires_at | set when the preview becomes ready (+24 h) |
 | change_type, effective_date, note | applied to every change in the import |
-| file | bytea; the raw CSV, cleared once the import is completed, cancelled or failed |
+| file | bytea; the raw CSV, cleared once the import is completed, cancelled, failed or expired |
 | counts | jsonb: `{ total, valid, toCreate, toUpdate, unchanged, rejected, created, updated }` |
 | error | text, set when the import failed |
 | created_at, finished_at | |

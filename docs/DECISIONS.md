@@ -316,3 +316,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Hires and exits only (previous seed); random changes without department/title structure.
 - **Why:** History timelines, slips across months and "recent pay changes" (Q6) need realistic data for review and demo; staying within one year keeps dates valid relative to `today`.
 - **Trade-off:** The seed takes ~1.7 s instead of ~1.3 s and writes ~19k history rows; changing the generator changes the deterministic data set.
+
+## D-051 — Import data cleared by a trigger; failed jobs end their import
+- **What:** A `BEFORE UPDATE` trigger on `imports` sets `file` and every `import_rows.raw` to NULL whenever the status becomes `completed`, `cancelled`, `failed` or `expired`. Job handlers may define `onGiveUp`, which runs before a job is marked failed for good; the import jobs use it to mark the import `failed`. Confirm and upload first expire any overdue preview, so expiry never waits on the job.
+- **Alternatives:** Clear in each service/job path that ends an import; a periodic sweep for stuck imports.
+- **Why:** One rule in the database covers every path, now and later, in the same statement. Without `onGiveUp`, an import whose job used up its retries stayed `validating`/`applying` and blocked all uploads.
+- **Trade-off:** The clearing lives in SQL rather than TypeScript, so it is less visible when reading the services; T13 covers it.

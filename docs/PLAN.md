@@ -256,7 +256,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a row invalidated between preview and apply ends up rejected
       - **T8:** a failure injected after N rows, then a retry → every row applied exactly once, one history row per changed row, earlier rows untouched
       - **T15:** an unexpected error on row 3 → row 3 is rejected with the "unexpected error" reason, all other rows are applied, the import completes and the job isn't retried; an injected connection error → the job is retried and rows are still applied once (the same rule is checked in the validate step)
-36. [ ] **Preview expiry and data clearing.**
+36. [x] **Preview expiry and data clearing.**
     - Integration tests:
       - **T12:** clock 24 h past ready → expire job sets `expired`; confirm → 410 (also before the job runs); nothing is written; a new upload is accepted; running the job again is a no-op
       - **T13:** after completed, cancelled, failed or expired, `imports.file` and every `import_rows.raw` are NULL, while row number, code, outcome and errors remain

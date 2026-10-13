@@ -705,3 +705,13 @@ please continue with task as I have added credits
 ```
 
 **Response:** Task 35: cancel (any HR user, writes nothing — T2) and confirm (records who confirmed, queues the apply); the apply job writes each row in its own transaction with history from the import (T7, T14), re-checks rows, retries safely after a lost connection (T8) and rejects only a row that fails unexpectedly (T15).
+
+---
+
+## 54. Phase 3 — Task 36: Preview expiry and data clearing
+
+```text
+next
+```
+
+**Response:** Task 36: previews expire after 24 h (confirm returns 410 even before the expiry job runs, and an overdue preview never blocks a new upload — T12); a database trigger clears the file and raw rows whenever an import ends, and an import whose job keeps failing is now marked failed (T13).
