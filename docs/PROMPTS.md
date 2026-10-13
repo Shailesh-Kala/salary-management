@@ -778,3 +778,17 @@ I have run the app and found few things and issues:
 ```
 
 **Response:** The export error was your dev database missing migration 0010 (I applied it); the API now refuses to start when migrations are pending. The create form now says what to enter and sends nothing until valid, every server validation message is plain language, mail errors name the setting to fix, and unexpected errors show a reference — all with tests. Your `.env` has `SMTP_HOST=smtp`, which doesn't resolve; set the real Mailtrap host.
+
+---
+
+## 61. Phase 3 — One shared schema for the form rules
+
+```text
+For the form rules existing twice: please share them instead of logging the risk.
+- Move the employee field rules (required fields, amounts, note length, dates) into one zod schema file that only imports zod, nothing server-only.
+- The web form uses that same schema. Checks that need the database (duplicate email, effective-date order) stay on the server, and the form keeps showing the server's errors.
+- Careful: Node won't strip types from .ts files inside node_modules, so a separate workspace package may break the server. Importing from server/src through a Vite alias is probably simplest.
+If that's too much change right now, add one test that runs the same valid and invalid inputs through both and checks they agree, and update D-056.
+```
+
+**Response:** Done the full change, not the fallback: the employee rules and message map now live in `server/src/shared` (zod only, checked by a test) and the create form validates with the same schema through a `@shared` alias, so the rules exist once. The database-backed checks stay on the server, the dialogs' note limits come from the same file, and D-057 records it (D-056 amended).

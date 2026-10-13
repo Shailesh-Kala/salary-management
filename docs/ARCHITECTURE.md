@@ -369,6 +369,8 @@ salary-management/
 │     ├─ middleware/       # auth.ts, error-handler.ts, rate-limit.ts
 │     ├─ jobs/             # queue.ts, worker.ts (runOnce + loop), handlers.ts (job type → handler)
 │     ├─ seed/             # generate.ts (pure, seeded), seed.ts (batched inserts)
+│     ├─ shared/           # employee-rules.ts (create-employee schema, amount, date and note rules)
+│     │                    # and zod-messages.ts; zod-only, also bundled into the web app (D-057)
 │     └─ modules/
 │        ├─ auth/          # routes, service, password, session-tokens, users.repository, user-admin
 │        ├─ employees/     # routes, service, repository, schemas, status, changes, lifecycle
@@ -383,6 +385,7 @@ salary-management/
    ├─ package.json  vite.config.ts  index.html
    └─ src/
       ├─ main.tsx  App.tsx (routes)  AppLayout.tsx (app bar)
+      │                    # `@shared` alias (vite.config.ts, tsconfig.json) → ../server/src/shared
       ├─ api/              # client.ts (credentials: include, error shape, file download),
       │                    # query-client.ts, employees.ts, imports.ts
       ├─ auth/             # session hooks, RequireAuth (redirects to /login?next=)
