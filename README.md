@@ -44,15 +44,16 @@ npm run seed -w server -- --reset # wipes employees + history, restores the rate
 ```
 
 - **Deterministic:** fixed PRNG seed (42); all dates are relative to today in `APP_TIMEZONE`, so a run on the same day always produces identical data.
-- **What it creates:** 10,000 employees across 8 countries and 8 departments (salaries from per-title bands × country pay level, in local currency), a `hire` history entry each, and an `exit` entry for leavers (~3% on notice, ~4% exited). It also creates the `SEED_ADMIN_EMAIL` HR user if missing (an existing account is left unchanged).
+- **What it creates:** 10,000 employees across 8 countries and 8 departments (salaries from per-title bands × country pay level, in local currency), a `hire` history entry each, an `exit` entry for leavers (~3% on notice, ~4% exited), and a year of pay history for those staying: an annual review for most (+3–12%), some promotions to the next title (+10–20%) and a few relocations with new pay in the new currency. The current employee row always equals their latest history entry. It also creates the `SEED_ADMIN_EMAIL` HR user if missing (an existing account is left unchanged).
 - **How:** batches of 1,000 rows via `INSERT … SELECT FROM unnest(...)`, all in one transaction.
 
 **Measured** (MacBook Pro, Apple Silicon, PostgreSQL 14.3, Node 24.21.0):
 
-| Run | 10,000 employees + 10,675 history entries |
+| Run | 10,000 employees + 18,992 history entries |
 |---|---|
-| Empty database | 1.72 s |
-| `--reset` (×3) | 1.31 s, 1.25 s, 1.29 s |
+| `--reset` (×3) | 1.78 s, 1.76 s, 1.58 s |
+
+History breakdown (seed 42): 10,000 hires, 7,511 annual reviews, 479 promotions, 265 relocations, 737 exits.
 
 ## Test
 ```bash

@@ -90,6 +90,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - values are valid against the employee schema
       - an integration run with `n = 200` inserts 200 rows + 200 changes
     - Measured time goes in the README.
+    - Later extended (on request): deterministic annual reviews, promotions and relocations within the last year, so history and "recent changes" have data (D-050).
 13. [x] **Employees list page:** DataGrid in server mode (paging and sorting), filters, debounced search, currency selector, status chips.
     - RTL test: changing a filter, the sort or the page sends the matching query parameters.
     - Also done here (the page needs them): `GET /api/employees/filter-options` (moved from Task 14), and a 401 on any query sends the user to login with `?next=`.

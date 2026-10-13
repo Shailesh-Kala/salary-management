@@ -304,3 +304,15 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** `npm audit fix --force` (downgrades exceljs to 3.4.0, a breaking change); accept the moderate advisory; switch spreadsheet library.
 - **Why:** The advisory (GHSA-w5hq-g745-h8pq) is in uuid's v3/v5/v6 with a caller buffer; exceljs only calls `v4()`, which 11.1.1 still exports in CommonJS — verified by the export tests and a workbook smoke test.
 - **Trade-off:** We run exceljs with a newer uuid than it declares; revisit when exceljs releases an update.
+
+## D-049 — Indian digit grouping for INR, international grouping for other currencies (display only)
+- **What:** The web UI and PDFs group INR in lakhs/crores (`₹12,34,567.89`, `INR 4,63,108.33`) and every other currency, including EUR, in thousands (`$1,234,567.89`, `USD 108,764.96`). CSV and Excel keep plain numbers with no grouping (Excel amount format `0.00`).
+- **Alternatives:** en-IN grouping for every currency (previous behaviour); international grouping everywhere; thousands separators in Excel's display format.
+- **Why:** HR reads rupees in lakhs, but `USD 1,08,764.96` looks wrong to anyone used to dollar amounts. Files must stay machine-friendly so Excel can calculate and a CSV can be re-imported.
+- **Trade-off:** Mixed-currency views use two grouping styles side by side.
+
+## D-050 — Seed includes a year of pay history
+- **What:** Staying employees hired before the review cycle get an annual review (~85%, +3–12%) ~150–200 days ago; ~10% of those not at the top title get a later promotion to the next title in their department (+10–20%); ~3% are relocated to another country with new pay from their title's band in that currency. Leavers get no pay changes. The employee row is the latest state.
+- **Alternatives:** Hires and exits only (previous seed); random changes without department/title structure.
+- **Why:** History timelines, slips across months and "recent pay changes" (Q6) need realistic data for review and demo; staying within one year keeps dates valid relative to `today`.
+- **Trade-off:** The seed takes ~1.7 s instead of ~1.3 s and writes ~19k history rows; changing the generator changes the deterministic data set.

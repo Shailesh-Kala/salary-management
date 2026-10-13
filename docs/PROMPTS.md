@@ -632,3 +632,15 @@ next
 ```
 
 **Response:** TDD: failing RTL tests (each of CSV, Excel and PDF requests `/api/exports/employees` with the list's filters, search, sort and currency but no paging, and saves the server's filename; a 422 explains the PDF limit and suggests CSV/Excel, saving nothing). Built an Export menu on the list page that downloads via `fetch` + blob (so errors stay readable), a shared `download()` in the API client, and widened `ApiError.details` to carry non-field data. Digit-grouping question unanswered, so formatting unchanged. 361 tests pass. Slice J done.
+
+---
+
+## 47. Phase 3 — Seeded pay history and digit grouping (between tasks 31 and 32)
+
+```text
+1. Yes, add seeded raises and promotions. Deterministic annual reviews for most employees, some promotions with title changes, and a few relocations, all within the last year.
+
+2. Yes, Indian grouping for INR and international grouping (1,234,567.89) for every other currency, including EUR. Please keep this for display only (UI and PDF). CSV and Excel must keep plain numbers with no grouping, so Excel can calculate with them and the CSV can be re-imported.
+```
+
+**Response:** Two TDD changes. (2) Tests then implementation: `formatMoney` and `pdfAmount` use en-IN for INR and en-US for every other currency; Excel amount cells use `0.00`; a test pins CSV amounts as plain numbers (D-049). (1) Tests then implementation: the generator returns each employee's hire state and a dated list of annual reviews, promotions and relocations within the last year; the seed writes them with diffs and snapshots; a test proves every employee row equals their latest snapshot (D-050). Re-seeded the app DB: 18,992 history entries (7,511 reviews, 479 promotions, 265 relocations) in 1.6–1.8 s. 376 tests pass.
