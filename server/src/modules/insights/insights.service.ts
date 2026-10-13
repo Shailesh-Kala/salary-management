@@ -2,7 +2,7 @@ import type { Clock } from '../../lib/clock.ts';
 import { invalidField } from '../../lib/errors.ts';
 import type { RateRepos } from '../rates/rates.repository.ts';
 import type { InsightRepos } from './insights.repository.ts';
-import type { InsightsQuery } from './insights.schemas.ts';
+import type { InsightsQuery, JobTitleQuery, OutliersQuery } from './insights.schemas.ts';
 
 export type InsightsServiceDeps = {
   clock: Clock;
@@ -24,6 +24,20 @@ export function createInsightsService({ clock, repos, rates }: InsightsServiceDe
       answer(q, async () => ({ items: await repos.byCountry(q, clock.today()) })),
     byDepartment: (q: InsightsQuery) =>
       answer(q, async () => ({ items: await repos.byDepartment(q, clock.today()) })),
+
+    async byJobTitle(q: JobTitleQuery) {
+      const currencyCode = await repos.countryCurrency(q.country);
+      if (!currencyCode) throw invalidField('country', 'Unsupported country');
+      return { country: q.country, currencyCode, items: await repos.byJobTitle(q, clock.today()) };
+    },
+
+    outliers: async (q: OutliersQuery) => ({
+      low: q.low,
+      high: q.high,
+      ...(await repos.outliers(q, clock.today())),
+      page: q.page,
+      pageSize: q.pageSize,
+    }),
   };
 }
 
