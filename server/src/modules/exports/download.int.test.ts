@@ -149,6 +149,48 @@ describe('GET /api/exports/:id/download', () => {
   });
 });
 
+describe('GET /api/exports', () => {
+  const list = (cookie: string) => request(app).get('/api/exports').set('Cookie', cookie);
+
+  it("lists the requester's emailed exports, newest first, with their state", async () => {
+    clock.advance(60_000);
+    const second = await request(app)
+      .post('/api/exports/employees/email')
+      .set('Cookie', owner.cookie)
+      .send({ country: 'IN' });
+    await request(app).get('/api/exports/employees?format=csv').set('Cookie', owner.cookie);
+
+    const res = await list(owner.cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([
+      {
+        id: second.body.exportId,
+        status: 'queued',
+        rowCount: 1,
+        createdAt: '2026-10-12T09:01:00.000Z',
+        expiresAt: null,
+        deletedAt: null,
+        error: null,
+      },
+      {
+        id: exportId,
+        status: 'ready',
+        rowCount: 1,
+        createdAt: '2026-10-12T09:00:00.000Z',
+        expiresAt: '2026-10-13T09:00:00.000Z',
+        deletedAt: null,
+        error: null,
+      },
+    ]);
+  });
+
+  it("does not show other people's exports, and requires a session", async () => {
+    expect((await list(other.cookie)).body.items).toEqual([]);
+    expect((await request(app).get('/api/exports')).status).toBe(401);
+  });
+});
+
 describe('the export_cleanup job (T6)', () => {
   it('deletes the file at expiry, and running it again changes nothing', async () => {
     clock.advance(24 * HOUR);
