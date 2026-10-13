@@ -180,7 +180,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR answers the seven pay questions.*
 
 ## Slice I: Salary slips
-26. [ ] **Slip API (JSON).**
+26. [x] **Slip API (JSON).**
     - Unit tests on the pure calculation:
       - base ÷ 12, allowances ÷ 12, gross
       - rounding

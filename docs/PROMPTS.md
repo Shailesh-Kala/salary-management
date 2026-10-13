@@ -572,3 +572,13 @@ continue with the task
 ```
 
 **Response:** TDD: failing RTL tests (every question answered in INR with the rates date and no job-title query without a country; switching currency re-queries Q1–Q3 and Q7 and updates the URL; choosing a country filters all seven and loads job-title ranges). Built `/insights` with one labelled region per question, URL-held filters, links from people to their employee page, and an Insights nav link; moved the dropdown into a shared `SelectFilter`. Corrected my mistyped en-IN expectation (₹63,80,37,16,300.00). After the interrupted (rejected) combined command, re-ran the checks in smaller steps and committed. Seed left unchanged (seeded-raises question still open). 316 tests pass. Slice H done.
+
+---
+
+## 41. Phase 3 — Task 26: Slip API (JSON)
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests for pure `buildSlip` (annual ÷ 12 half-up per line, gross = sum of rounded lines, month lengths incl. leap years, hire-month and last-working-day-month allowed but not beyond, current month allowed but not future) and integration tests (past-month slip uses the snapshot at month end after a promotion; months before a relocation keep India/INR (T14 slip part); earliest-snapshot fallback after a hire-date correction; 400 for future, pre-hire and malformed months; 404). Implemented the `slips` module: `GET /api/employees/:id/slips/:month`, `addAmounts`, `lastDayOfMonth`. 326 tests pass.
