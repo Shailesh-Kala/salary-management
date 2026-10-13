@@ -283,7 +283,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - **T4:** another HR user → 403, audited `forbidden`, no file returned
       - **T5:** clock past `expires_at` → 410, audited `expired`
       - **T6:** the cleanup job nulls the file and sets `deleted_at`, and is a no-op when run twice
-40. [ ] **Email export UI + export download page:**
+40. [x] **Email export UI + export download page:**
     - a 422 now opens "email it to you"
     - My exports page
     - the `/exports/:id` page fetches the file with credentials and saves it

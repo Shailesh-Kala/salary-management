@@ -334,3 +334,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Audit every request including those; return 404 instead of 403 to hide that the export exists.
 - **Why:** The audit exists to answer "who tried to get this file". A request for something with no file says nothing about that, and the outcome list in the design has only three values. 403 matches the design and the export ids are random UUIDs, so guessing one is impractical.
 - **Trade-off:** A colleague with a valid id learns that an export exists; the file stays out of reach.
+
+## D-054 — Too-large PDF opens an email offer; the download page saves on arrival
+- **What:** When a PDF export returns `422 EXPORT_TOO_LARGE`, the export menu opens a dialog stating the row count and limit and offering "Email me the PDF" (to the signed-in user's own address), instead of only showing an error. The page the email links to (`/exports/:id`) starts the download as soon as it opens and offers "Download again"; it does not re-download when the browser window regains focus. "My exports" (`/exports`) lists the user's emailed exports and refreshes every 5 s while one is being prepared.
+- **Alternatives:** Keep the error message and add a separate "Email PDF" menu item; make the user click a button on the download page.
+- **Why:** A user who hit the limit is one click from what they wanted. The link in the email should do what it says without another click. Every download is audited, so accidental repeats (focus, refetch) would pollute the trail.
+- **Trade-off:** Opening the link counts as a download even if the browser blocks the file save; "Download again" covers that.

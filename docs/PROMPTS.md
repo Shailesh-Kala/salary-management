@@ -745,3 +745,13 @@ next
 ```
 
 **Response:** Task 39: the emailed PDF downloads only for the person who requested it; anyone else gets 403 (T4) and an expired or deleted link gets 410 (T5), each recorded in a new append-only download audit. The cleanup job deletes the file at expiry and does nothing if run again or too early (T6).
+
+---
+
+## 58. Phase 3 — Task 40: Email export UI and export download page
+
+```text
+next
+```
+
+**Response:** Task 40: a too-large PDF now opens "Email me the PDF" (sent to your own address), a My exports page shows each emailed export's state, and the link in the email opens a page that saves the file; without a session it sends you to sign in and back (T11). Added `GET /api/exports` for the list.
