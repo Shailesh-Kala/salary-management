@@ -540,3 +540,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests on a 6-employee fixture (on-notice counted, exited excluded) with hand-computed values: summary totals/average/median in INR and USD (rounded once at the end), four filter combinations incl. an empty result, unknown currency 400; per-country min/median/average/max/total in local and reporting currency; departments ranked by payroll, with country filter. Implemented the `insights` module: one `current_pay` CTE, SQL aggregates with `percentile_cont`, amounts as text; `ratesInfo` moved to the rates repository and shared (refactor). Measured 10–94 ms on the seeded 10k DB. 293 tests pass.
+
+---
+
+## 38. Phase 3 — Task 23: Insights API Q4–Q5
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests on a 10-employee fixture (on-notice in, exited out): Q4 min/median/max per title in IN and US in their own currency, 400 without or with an unsupported country; Q5 default 80/120 % flags (ratio, position, peer median and count), custom thresholds with ties ordered by employee code, pagination, department filter not changing peer medians, invalid thresholds 400. Implemented `/insights/by-job-title` and `/insights/outliers` (peer CTE with `percentile_cont`, exact-ratio extremeness ordering). Measured 16–92 ms on the seeded 10k DB. 307 tests pass.
