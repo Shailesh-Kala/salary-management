@@ -16,13 +16,17 @@ beforeEach(resetDb);
 afterAll(() => testPool.end());
 
 describe('seedDatabase', () => {
-  it('inserts employees with a hire change each, plus an exit change for leavers', async () => {
+  it('inserts employees with a hire change each, an exit change for leavers, and pay history', async () => {
     const result = await seedDatabase(testPool, options);
 
     const leavers = await count(
       'SELECT count(*)::int AS n FROM employees WHERE exit_type IS NOT NULL',
     );
-    expect(result).toEqual({ employees: 200, changes: 200 + leavers });
+    const history = await count(
+      "SELECT count(*)::int AS n FROM employee_changes WHERE change_type IN ('annual_review', 'promotion', 'relocation')",
+    );
+    expect(history).toBeGreaterThan(100);
+    expect(result).toEqual({ employees: 200, changes: 200 + leavers + history });
     expect(await count('SELECT count(*)::int AS n FROM employees')).toBe(200);
     expect(
       await count("SELECT count(*)::int AS n FROM employee_changes WHERE change_type = 'hire'"),
@@ -38,7 +42,22 @@ describe('seedDatabase', () => {
     ).toBe(1);
   });
 
-  it('stores hire snapshots in the country currency', async () => {
+  it('ends each employee at the values of their latest pay or title change', async () => {
+    await seedDatabase(testPool, options);
+
+    const mismatched = await count(
+      `SELECT count(*)::int AS n
+         FROM employees e
+         JOIN LATERAL (SELECT * FROM employee_changes ch
+                        WHERE ch.employee_id = e.id AND ch.change_type <> 'exit'
+                        ORDER BY ch.effective_date DESC, ch.id DESC LIMIT 1) last ON true
+        WHERE (last.base_salary, last.allowances, last.job_title, last.country_code)
+              IS DISTINCT FROM (e.base_salary, e.allowances, e.job_title, e.country_code)`,
+    );
+    expect(mismatched).toBe(0);
+  });
+
+  it('stores every snapshot in the currency of its country', async () => {
     await seedDatabase(testPool, options);
 
     const mismatched = await count(
