@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api/client.ts';
 import { type EmployeeStatus, useFilterOptions } from '../api/employees.ts';
+import { ExportMenu } from '../components/ExportMenu.tsx';
 import { asOptions, SelectFilter } from '../components/SelectFilter.tsx';
 import { STATUS, StatusChip } from '../components/StatusChip.tsx';
 import { formatMoney } from '../lib/format.ts';
@@ -79,6 +80,7 @@ function useListParams() {
 export function EmployeesPage() {
   const { state, update } = useListParams();
   const [search, setSearch] = useState(state.q);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Debounce: query once typing pauses for 300 ms.
   useEffect(() => {
@@ -98,6 +100,11 @@ export function EmployeesPage() {
     currency: state.currency,
   });
   for (const f of FILTERS) if (state[f]) query.set(f, state[f]);
+
+  // Exports get the same filters, sort and currency as the list, but every page.
+  const exportQuery = new URLSearchParams(query);
+  exportQuery.delete('page');
+  exportQuery.delete('pageSize');
 
   const list = useQuery({
     queryKey: ['employees', query.toString()],
@@ -155,9 +162,12 @@ export function EmployeesPage() {
         <Typography variant="h4" component="h1">
           Employees
         </Typography>
-        <Button component={Link} to="/employees/new" variant="contained" sx={{ ml: 'auto' }}>
-          Add employee
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+          <ExportMenu query={exportQuery} onError={setExportError} />
+          <Button component={Link} to="/employees/new" variant="contained">
+            Add employee
+          </Button>
+        </Stack>
       </Stack>
 
       <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -205,6 +215,11 @@ export function EmployeesPage() {
         />
       </Stack>
 
+      {exportError && (
+        <Alert severity="warning" onClose={() => setExportError(null)}>
+          {exportError}
+        </Alert>
+      )}
       {list.isError && <Alert severity="error">{list.error.message}</Alert>}
 
       {list.data && (

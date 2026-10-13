@@ -41,7 +41,10 @@ export const useFilterOptions = () =>
 /** Server validation details keyed by field, for showing errors next to inputs. */
 export function fieldErrors(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {};
-  return Object.fromEntries((error.details ?? []).map((d) => [d.path, d.message]));
+  const details = Array.isArray(error.details)
+    ? (error.details as { path: string; message: string }[])
+    : [];
+  return Object.fromEntries(details.map((d) => [d.path, d.message]));
 }
 
 export type HistoryEntry = {
