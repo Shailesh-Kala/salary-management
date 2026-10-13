@@ -3,7 +3,11 @@ import type { Clock } from '../../lib/clock.ts';
 import { AppError, invalidField } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
 import type { ImportRepos } from './imports.repository.ts';
-import { checkUpload, type ImportForm, templateCsv } from './upload.ts';
+import { stringify } from 'csv-stringify/sync';
+import { checkUpload, type ImportForm, TEMPLATE_HEADER, templateCsv } from './upload.ts';
+
+const BOM = String.fromCharCode(0xfeff); // so Excel opens UTF-8 correctly
+const PREVIEW_REJECTED_LIMIT = 100;
 
 export type ImportsServiceDeps = {
   clock: Clock;
@@ -17,8 +21,46 @@ const isActiveImportConflict = (err: unknown) =>
   (err as { constraint?: string }).constraint === 'one_active_import';
 
 export function createImportsService({ clock, repos, inTransaction }: ImportsServiceDeps) {
+  const notFound = () => new AppError('NOT_FOUND', 404, 'Import not found');
+
   return {
     template: templateCsv,
+
+    /** Status, counts and the first rejected rows with their reasons. */
+    async get(id: string) {
+      const details = await repos.details(id);
+      if (!details) throw notFound();
+      const rejected = await repos.rejectedRows(id, PREVIEW_REJECTED_LIMIT);
+      return {
+        ...details,
+        rejected: rejected.map(({ rowNumber, employeeCode, errors }) => ({
+          rowNumber,
+          employeeCode,
+          errors,
+        })),
+      };
+    },
+
+    /**
+     * Rejected rows with their original values plus an `error` column, so HR can fix them and
+     * upload this file again. Values are kept exactly as uploaded (no formula escaping) so the
+     * round trip is lossless; they came from HR's own file.
+     */
+    async rejectedCsv(id: string) {
+      const record = await repos.find(id);
+      if (!record) throw notFound();
+      const rows = await repos.rejectedRows(id);
+      const lines = rows
+        .filter((r) => r.raw)
+        .map((r) => [
+          ...TEMPLATE_HEADER.map((column) => r.raw![column] ?? ''),
+          r.errors.join('; '),
+        ]);
+      return {
+        filename: `${record.fileName.replace(/\.csv$/i, '')}-rejected.csv`,
+        content: BOM + stringify([[...TEMPLATE_HEADER, 'error'], ...lines]),
+      };
+    },
 
     /** Runs the upload checks, stores the file and queues validation (202); one import at a time. */
     async upload(

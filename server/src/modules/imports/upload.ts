@@ -54,9 +54,9 @@ export function checkUpload(file: { originalname: string; buffer: Buffer } | und
   const [header = [], ...rows] = records;
   const columns = header.map((column) => column.trim().toLowerCase());
   const missing = TEMPLATE_HEADER.filter((column) => !columns.includes(column));
-  const unknown = columns.filter(
-    (column) => !(TEMPLATE_HEADER as readonly string[]).includes(column),
-  );
+  // The rejected-rows file adds an `error` column; it is ignored so that file can be re-uploaded.
+  const known: readonly string[] = [...TEMPLATE_HEADER, 'error'];
+  const unknown = columns.filter((column) => !known.includes(column));
   if (missing.length) throw invalidField('file', `Missing columns: ${missing.join(', ')}`);
   if (unknown.length) throw invalidField('file', `Unknown columns: ${unknown.join(', ')}`);
   if (rows.length === 0) throw invalidField('file', 'The file has no data rows');

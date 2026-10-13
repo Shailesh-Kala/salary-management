@@ -2,6 +2,7 @@ import { pino } from 'pino';
 import { createApp } from './app.ts';
 import { loadConfig } from './config.ts';
 import { createPool } from './db/pool.ts';
+import { jobHandlers } from './jobs/handlers.ts';
 import { createQueue } from './jobs/queue.ts';
 import { createWorker } from './jobs/worker.ts';
 import { createClock } from './lib/clock.ts';
@@ -11,7 +12,11 @@ const logger = pino();
 const db = createPool(config.DATABASE_URL);
 const clock = createClock(config.APP_TIMEZONE);
 
-const worker = createWorker({ queue: createQueue(db, clock), handlers: {}, logger });
+const worker = createWorker({
+  queue: createQueue(db, clock),
+  handlers: jobHandlers({ db, clock }),
+  logger,
+});
 const server = createApp({ logger, db, clock, config }).listen(config.PORT, () => {
   logger.info({ port: config.PORT }, 'server listening');
 });

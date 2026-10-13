@@ -1,5 +1,16 @@
 import type { Pool, PoolClient } from 'pg';
 import type { ImportForm } from './upload.ts';
+import type { ExistingEmployee, RowContext, RowResult } from './validate-rows.ts';
+
+export type ImportRecord = {
+  id: string;
+  status: string;
+  fileName: string;
+  file: Buffer | null;
+  changeType: ImportForm['changeType'];
+  effectiveDate: string;
+  note: string;
+};
 
 export function importRepositories(db: Pool | PoolClient) {
   return {
@@ -29,6 +40,103 @@ export function importRepositories(db: Pool | PoolClient) {
           ],
         )
       ).rows[0]!.id,
+
+    find: async (id: string) =>
+      (
+        await db.query<ImportRecord>(
+          `SELECT id, status, file_name AS "fileName", file, change_type AS "changeType",
+                  effective_date AS "effectiveDate", note
+             FROM imports WHERE id = $1`,
+          [id],
+        )
+      ).rows[0] ?? null,
+
+    /** What HR sees: status, counts, expiry and who uploaded it. */
+    details: async (id: string) =>
+      (
+        await db.query(
+          `SELECT i.id, i.status, i.file_name AS "fileName", i.change_type AS "changeType",
+                  i.effective_date AS "effectiveDate", i.note, i.row_count AS "rowCount", i.counts,
+                  i.preview_expires_at AS "previewExpiresAt", i.error, i.created_at AS "createdAt",
+                  i.finished_at AS "finishedAt",
+                  json_build_object('id', u.id, 'name', u.name) AS "uploadedBy"
+             FROM imports i JOIN hr_users u ON u.id = i.uploaded_by
+            WHERE i.id = $1`,
+          [id],
+        )
+      ).rows[0] ?? null,
+
+    rejectedRows: async (id: string, limit?: number) =>
+      (
+        await db.query<{
+          rowNumber: number;
+          employeeCode: string | null;
+          errors: string[];
+          raw: Record<string, string> | null;
+        }>(
+          `SELECT row_number AS "rowNumber", employee_code AS "employeeCode", errors, raw
+             FROM import_rows
+            WHERE import_id = $1 AND coalesce(outcome, preview_outcome) = 'rejected'
+            ORDER BY row_number
+            LIMIT $2`,
+          [id, limit ?? null],
+        )
+      ).rows,
+
+    /** Everything the row rules need about current employees, loaded in two queries. */
+    validationContext: async (form: ImportForm, today: string): Promise<RowContext> => {
+      const { rows: employees } = await db.query<ExistingEmployee>(
+        `SELECT e.id, e.employee_code AS "employeeCode", e.first_name AS "firstName",
+                e.last_name AS "lastName", e.email, e.job_title AS "jobTitle", e.department,
+                e.country_code AS "countryCode", c.currency_code AS "currencyCode",
+                e.hire_date AS "hireDate", e.base_salary AS "baseSalary", e.allowances,
+                e.exit_type AS "exitType", e.notice_date AS "noticeDate",
+                e.last_working_day AS "lastWorkingDay", e.version,
+                h.latest AS "latestEffectiveDate", h.first_non_hire AS "firstNonHireDate"
+           FROM employees e
+           JOIN countries c ON c.code = e.country_code
+           LEFT JOIN (SELECT employee_id, max(effective_date) AS latest,
+                             min(effective_date) FILTER (WHERE change_type <> 'hire') AS first_non_hire
+                        FROM employee_changes GROUP BY employee_id) h ON h.employee_id = e.id`,
+      );
+      const { rows: countries } = await db.query<{ code: string; currencyCode: string }>(
+        'SELECT code, currency_code AS "currencyCode" FROM countries',
+      );
+      return {
+        form,
+        today,
+        employeesByCode: new Map(employees.map((e) => [e.employeeCode, e])),
+        employeeCodeByEmail: new Map(employees.map((e) => [e.email, e.employeeCode])),
+        currencyByCountry: new Map(countries.map((c) => [c.code, c.currencyCode])),
+      };
+    },
+
+    /** Moves a validating import to its preview; false if it was cancelled meanwhile. */
+    markPreviewReady: async (id: string, counts: object, expiresAt: Date) =>
+      (
+        await db.query(
+          `UPDATE imports SET status = 'awaiting_confirmation', counts = $2, preview_expires_at = $3
+            WHERE id = $1 AND status = 'validating'`,
+          [id, JSON.stringify(counts), expiresAt],
+        )
+      ).rowCount === 1,
+
+    /** Replaces the import's rows, so a retried validation never duplicates them. */
+    savePreviewRows: async (id: string, results: RowResult[]) => {
+      await db.query('DELETE FROM import_rows WHERE import_id = $1', [id]);
+      await db.query(
+        `INSERT INTO import_rows (import_id, row_number, employee_code, raw, preview_outcome, errors)
+         SELECT $1, * FROM unnest($2::int[], $3::text[], $4::jsonb[], $5::text[], $6::jsonb[])`,
+        [
+          id,
+          results.map((r) => r.rowNumber),
+          results.map((r) => r.employeeCode),
+          results.map((r) => JSON.stringify(r.raw)),
+          results.map((r) => r.outcome),
+          results.map((r) => JSON.stringify(r.errors)),
+        ],
+      );
+    },
 
     activeImportId: async () =>
       (
