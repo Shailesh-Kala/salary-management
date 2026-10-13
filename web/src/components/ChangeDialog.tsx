@@ -10,15 +10,15 @@ import {
   TextField,
   type TextFieldProps,
 } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, ApiError } from '../api/client.ts';
 import {
   CHANGE_TYPE_LABELS,
   type EmployeeDetail,
-  fieldErrors,
   type FilterOptions,
   RECORDABLE_CHANGE_TYPES,
+  saveErrors,
+  useEmployeeEvent,
 } from '../api/employees.ts';
 import { VersionConflictAlert } from './VersionConflictAlert.tsx';
 
@@ -63,27 +63,17 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
         : current),
     }));
 
-  const save = useMutation({
-    mutationFn: () => {
-      const { countryCode, hireDate, ...fields } = form;
-      const body = {
-        version: employee.version,
-        ...fields,
-        ...(relocation && { countryCode }),
-        ...(correction && { hireDate }),
-      };
-      return api<{ employee: EmployeeDetail }>(`/employees/${employee.id}/changes`, {
-        method: 'POST',
-        body: Object.fromEntries(Object.entries(body).filter(([, v]) => v !== '')),
-      });
-    },
-    onSuccess: ({ employee: updated }) => {
-      queryClient.setQueryData(['employee', employee.id], updated);
-      void queryClient.invalidateQueries({ queryKey: ['employee-history', employee.id] });
-      void queryClient.invalidateQueries({ queryKey: ['employees'] });
-      onClose();
-    },
-  });
+  const save = useEmployeeEvent(employee.id, '/changes', onClose);
+  const submit = () => {
+    const { countryCode, hireDate, ...fields } = form;
+    const body = {
+      version: employee.version,
+      ...fields,
+      ...(relocation && { countryCode }),
+      ...(correction && { hireDate }),
+    };
+    save.mutate(Object.fromEntries(Object.entries(body).filter(([, v]) => v !== '')));
+  };
 
   const noteLength = form.note.trim().length;
   const canSave =
@@ -94,12 +84,7 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
     (!relocation ||
       (form.countryCode !== '' && form.baseSalary.trim() !== '' && form.allowances.trim() !== ''));
 
-  const errors = fieldErrors(save.error);
-  const conflict = save.error instanceof ApiError && save.error.code === 'VERSION_CONFLICT';
-  const general =
-    save.error instanceof ApiError && !conflict
-      ? (errors[''] ?? (Object.keys(errors).length ? null : save.error.message))
-      : null;
+  const { conflict, general, fields: errors } = saveErrors(save.error);
   const reload = () => {
     void queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
     onClose();
@@ -175,11 +160,7 @@ export function ChangeDialog({ employee, countries, onClose }: Props) {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={() => save.mutate()}
-          disabled={!canSave || save.isPending}
-        >
+        <Button variant="contained" onClick={submit} disabled={!canSave || save.isPending}>
           Save
         </Button>
       </DialogActions>

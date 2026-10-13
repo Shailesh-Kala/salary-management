@@ -14,12 +14,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { api, ApiError } from '../api/client.ts';
+import { api } from '../api/client.ts';
 import {
   type EmployeeDetail,
   EXIT_TYPE_LABELS,
-  fieldErrors,
   type HistoryEntry,
+  saveErrors,
   useFilterOptions,
 } from '../api/employees.ts';
 import { ChangeDialog } from '../components/ChangeDialog.tsx';
@@ -69,8 +69,7 @@ function EditProfileDialog({
     },
   });
 
-  const conflict = save.error instanceof ApiError && save.error.code === 'VERSION_CONFLICT';
-  const errors = fieldErrors(save.error);
+  const { conflict, general, fields: errors } = saveErrors(save.error);
   const reload = () => {
     void queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
     onClose();
@@ -94,8 +93,7 @@ function EditProfileDialog({
           {conflict ? (
             <VersionConflictAlert onReload={reload} />
           ) : (
-            save.isError &&
-            Object.keys(errors).length === 0 && <Alert severity="error">{save.error.message}</Alert>
+            general && <Alert severity="error">{general}</Alert>
           )}
           {input('firstName', 'First name')}
           {input('lastName', 'Last name')}
