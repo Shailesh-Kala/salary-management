@@ -27,6 +27,8 @@ function fromCents(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }
 
+export const addAmounts = (a: string, b: string) => fromCents(toCents(a) + toCents(b));
+
 /** Annual ÷ 12, rounded half-up to the cent. */
 export function annualToMonthly(annual: string): string {
   const cents = toCents(annual);

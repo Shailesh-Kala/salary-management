@@ -12,7 +12,7 @@ import {
 import type { EmployeesService } from './employees.service.ts';
 
 /** A malformed id can't match any employee, so it is a 404 rather than a 400. */
-function employeeId(req: Request) {
+export function employeeId(req: Request) {
   const id = z.uuid().safeParse(req.params.id);
   if (!id.success) throw new AppError('NOT_FOUND', 404, 'Employee not found');
   return id.data;
