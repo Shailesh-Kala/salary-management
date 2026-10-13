@@ -530,3 +530,13 @@ next
 ```
 
 **Response:** TDD: failing RTL tests (rates listed with dates and "Initial snapshot", INR shown as fixed base currency with no edit, empty-history message; editing USD posts `{inrPerUnit, asOf}` and the table and rate history refresh with "88.75 → 90" and "2026-10-01 → 2026-10-12"; server field error shown in the dialog; app-bar navigation). Then `/exchange-rates` page, edit dialog (refreshes rates, history and the employee list), `formatRate`, and Employees / Exchange rates links in the app bar. 286 tests pass. Slice G done. A post-commit flake check failed 1/5: measured that uncapped parallel jsdom workers stretch the slowest test to 5.5 s (1.6 s serial) with no speed gain over 2 workers, so capped web `maxWorkers` at 2 (15/15 clean runs).
+
+---
+
+## 37. Phase 3 — Task 22: Insights API Q1–Q3
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests on a 6-employee fixture (on-notice counted, exited excluded) with hand-computed values: summary totals/average/median in INR and USD (rounded once at the end), four filter combinations incl. an empty result, unknown currency 400; per-country min/median/average/max/total in local and reporting currency; departments ranked by payroll, with country filter. Implemented the `insights` module: one `current_pay` CTE, SQL aggregates with `percentile_cont`, amounts as text; `ratesInfo` moved to the rates repository and shared (refactor). Measured 10–94 ms on the seeded 10k DB. 293 tests pass.

@@ -159,7 +159,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR keeps rates current, with an audit trail.*
 
 ## Slice H: Pay insights
-22. [ ] **Insights API Q1–Q3:** summary, by-country, by-department.
+22. [x] **Insights API Q1–Q3:** summary, by-country, by-department.
     - Integration tests with a small fixture and hand-computed expected values: count, sum, avg, median, min and max in local and reporting currency; country and department filters; exited employees excluded.
 23. [ ] **Insights API Q4–Q5:** pay range by job title within a country; outliers.
     - Tests:
