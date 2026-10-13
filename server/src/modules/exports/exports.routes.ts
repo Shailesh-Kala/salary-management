@@ -6,14 +6,16 @@ import { z } from 'zod';
 import { listEmployeesQuery } from '../employees/employee.schemas.ts';
 import { AMOUNT_COLUMNS, csvRow, DATE_COLUMNS, exportHeader, xlsxRow } from './columns.ts';
 import type { ExportsService } from './exports.service.ts';
+import { describeFilters, renderEmployeeListPdf } from './list-pdf.ts';
 
 const exportQuery = listEmployeesQuery
   .omit({ page: true, pageSize: true })
-  .extend({ format: z.enum(['csv', 'xlsx']) });
+  .extend({ format: z.enum(['csv', 'xlsx', 'pdf']) });
 
 const CONTENT_TYPES = {
   csv: 'text/csv; charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pdf: 'application/pdf',
 };
 
 type Export = Awaited<ReturnType<ExportsService['employees']>>;
@@ -47,10 +49,25 @@ export function exportRoutes(exports: ExportsService) {
   routes.get('/exports/employees', async (req, res) => {
     const { format, ...filters } = exportQuery.parse(req.query);
     const result = await exports.employees(filters, format, req.user!);
-    res
-      .status(200)
-      .set('Content-Type', CONTENT_TYPES[format])
-      .set('Content-Disposition', `attachment; filename="${result.filename}"`);
+    const headers = {
+      'Content-Type': CONTENT_TYPES[format],
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+    };
+
+    if (format === 'pdf') {
+      // Capped at 1,000 rows, so it is built in memory first and any failure is still a JSON error.
+      const rows = [];
+      for await (const batch of result.batches) rows.push(...batch);
+      const pdf = await renderEmployeeListPdf(rows, {
+        currency: result.currency,
+        ratesAsOf: result.ratesAsOf,
+        filters: describeFilters(filters),
+        generatedAt: result.generatedAt,
+      });
+      res.set(headers).send(pdf);
+      return;
+    }
+    res.status(200).set(headers);
     await (format === 'csv' ? streamCsv(res, result) : streamXlsx(res, result));
   });
 

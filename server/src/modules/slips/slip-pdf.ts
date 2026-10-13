@@ -1,13 +1,10 @@
 import PDFDocument from 'pdfkit';
+import { pdfAmount as amount, renderPdf } from '../../lib/pdf.ts';
 import type { Slip } from './slip.ts';
 
 const LEFT = 50;
 const RIGHT_COLUMN = 345;
 const RIGHT_WIDTH = 200;
-
-// The built-in PDF fonts have no ₹ glyph, so amounts carry the currency code instead.
-const amount = (value: string, currency: string) =>
-  `${currency} ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const monthLabel = (month: string) =>
   new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
@@ -16,21 +13,16 @@ const monthLabel = (month: string) =>
 
 /** Renders a slip as an A4 PDF; nothing is stored (D-006, D-012). */
 export function renderSlipPdf(slip: Slip, generatedAt: Date): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: 'A4',
-      margin: LEFT,
-      info: {
-        Title: `Salary slip ${slip.employee.employeeCode} ${slip.month}`,
-        Author: 'Salary Management',
-        CreationDate: generatedAt,
-      },
-    });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: LEFT,
+    info: {
+      Title: `Salary slip ${slip.employee.employeeCode} ${slip.month}`,
+      Author: 'Salary Management',
+      CreationDate: generatedAt,
+    },
+  });
+  return renderPdf(doc, () => {
     const row = (label: string, value: string, bold = false) => {
       const y = doc.y;
       doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').text(label, LEFT, y);
@@ -76,6 +68,5 @@ export function renderSlipPdf(slip: Slip, generatedAt: Date): Promise<Buffer> {
       .fillColor('#555555')
       .text(slip.notice, LEFT)
       .text(`Generated ${generatedAt.toISOString()}`, LEFT);
-    doc.end();
   });
 }
