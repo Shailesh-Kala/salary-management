@@ -10,6 +10,16 @@ const RATE_COLUMNS = `r.currency_code AS "currencyCode", r.inr_per_unit AS "inrP
 
 export function rateRepositories(db: Pool | PoolClient) {
   return {
+    /** Oldest rate date (conversions are only as fresh as it) and whether `currency` exists. */
+    ratesInfo: async (currency: string) =>
+      (
+        await db.query<{ asOf: string; known: boolean }>(
+          `SELECT min(as_of) AS "asOf", coalesce(bool_or(currency_code = $1), false) AS known
+             FROM exchange_rates`,
+          [currency],
+        )
+      ).rows[0]!,
+
     countries: async () =>
       (
         await db.query(

@@ -19,6 +19,9 @@ import { createUsersRepository } from './modules/auth/users.repository.ts';
 import { employeeRepositories } from './modules/employees/employees.repository.ts';
 import { employeeRoutes } from './modules/employees/employees.routes.ts';
 import { createEmployeesService } from './modules/employees/employees.service.ts';
+import { insightRepositories } from './modules/insights/insights.repository.ts';
+import { insightRoutes } from './modules/insights/insights.routes.ts';
+import { createInsightsService } from './modules/insights/insights.service.ts';
 import { rateRepositories } from './modules/rates/rates.repository.ts';
 import { rateRoutes } from './modules/rates/rates.routes.ts';
 import { createRatesService } from './modules/rates/rates.service.ts';
@@ -83,6 +86,15 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   api.use(apiRateLimit());
   api.use(protectedRoutes);
   api.use(employeeRoutes(employees));
+  api.use(
+    insightRoutes(
+      createInsightsService({
+        clock,
+        repos: insightRepositories(db),
+        rates: rateRepositories(db),
+      }),
+    ),
+  );
   api.use(
     rateRoutes(
       createRatesService({

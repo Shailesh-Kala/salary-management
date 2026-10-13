@@ -8,7 +8,7 @@ export const isoDate = z.iso.date();
 
 export const note = z.string().trim().min(5).max(1000);
 
-const countryCode = z
+export const countryCode = z
   .string()
   .trim()
   .toUpperCase()
