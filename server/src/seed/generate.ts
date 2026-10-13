@@ -1,3 +1,4 @@
+import { addDays } from '../lib/dates.ts';
 import { mulberry32 } from '../lib/prng.ts';
 import type { EmployeeRow, NewEmployee } from '../modules/employees/employees.repository.ts';
 
@@ -138,10 +139,6 @@ const LAST_NAMES = [
   'Wong',
   'Young',
 ];
-
-/** Calendar arithmetic on 'YYYY-MM-DD' strings, in UTC so the local zone can't shift the day. */
-export const addDays = (date: string, days: number) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 /** Deterministic for a given (count, seed, today); dates are relative to `today`. */
 export function generateEmployees({

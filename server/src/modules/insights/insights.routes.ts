@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { insightsQuery, jobTitleQuery, outliersQuery } from './insights.schemas.ts';
+import {
+  insightsQuery,
+  jobTitleQuery,
+  outliersQuery,
+  recentChangesQuery,
+} from './insights.schemas.ts';
 import type { InsightsService } from './insights.service.ts';
 
 export function insightRoutes(insights: InsightsService) {
@@ -23,6 +28,14 @@ export function insightRoutes(insights: InsightsService) {
 
   routes.get('/insights/outliers', async (req, res) => {
     res.json(await insights.outliers(outliersQuery.parse(req.query)));
+  });
+
+  routes.get('/insights/recent-changes', async (req, res) => {
+    res.json(await insights.recentChanges(recentChangesQuery.parse(req.query)));
+  });
+
+  routes.get('/insights/leavers', async (req, res) => {
+    res.json(await insights.leavers(insightsQuery.parse(req.query)));
   });
 
   return routes;

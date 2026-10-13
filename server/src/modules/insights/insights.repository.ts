@@ -1,22 +1,32 @@
 import type { Pool, QueryResultRow } from 'pg';
-import type { InsightsQuery, JobTitleQuery, OutliersQuery } from './insights.schemas.ts';
+import { CHANGE_TYPES } from '../employees/employee.schemas.ts';
+import type {
+  InsightsQuery,
+  JobTitleQuery,
+  OutliersQuery,
+  RecentChangesQuery,
+} from './insights.schemas.ts';
 
 /**
- * Current headcount (active and on notice) with each annual salary (base + allowances) in local
- * currency and converted to the reporting currency. Rounding happens only on the final figures.
+ * Current headcount (active and on notice), or only those on notice ('leaving'), with each annual
+ * salary (base + allowances) in local currency and converted to the reporting currency.
+ * Rounding happens only on the final figures.
  */
-function currentPay(f: InsightsQuery, today: string) {
+function currentPay(f: InsightsQuery, today: string, scope: 'current' | 'leaving' = 'current') {
   const params: unknown[] = [];
   const p = (value: unknown) => `$${params.push(value)}`;
   const where = [
     `rt.currency_code = ${p(f.currency)}`,
-    `(e.last_working_day IS NULL OR e.last_working_day >= ${p(today)})`,
+    scope === 'current'
+      ? `(e.last_working_day IS NULL OR e.last_working_day >= ${p(today)})`
+      : `e.last_working_day >= ${p(today)}`,
   ];
   if (f.country) where.push(`e.country_code = ${p(f.country)}`);
   if (f.department) where.push(`e.department = ${p(f.department)}`);
 
-  const sql = `SELECT e.country_code, c.name AS country_name, c.currency_code AS local_currency,
-      e.department,
+  const sql = `SELECT e.id, e.employee_code, e.first_name, e.last_name, e.job_title,
+      e.country_code, c.name AS country_name, c.currency_code AS local_currency,
+      e.department, e.exit_type, e.last_working_day,
       e.base_salary + e.allowances AS annual,
       (e.base_salary + e.allowances) * rf.inr_per_unit / rt.inr_per_unit AS converted
     FROM employees e
@@ -43,8 +53,9 @@ export function insightRepositories(db: Pool) {
     f: InsightsQuery,
     today: string,
     select: (pay: string) => string,
+    scope: 'current' | 'leaving' = 'current',
   ) => {
-    const base = currentPay(f, today);
+    const base = currentPay(f, today, scope);
     return (await db.query<T>(`WITH pay AS (${base.sql}) ${select('pay')}`, base.params)).rows;
   };
 
@@ -155,6 +166,89 @@ export function insightRepositories(db: Pool) {
         countParams,
       );
       return { items, total: rows[0]!.total };
+    },
+
+    /**
+     * Q6: pay and title change events in a date range, each with the values before it (from the
+     * previous history entry) and the % change in annual pay when the currency stayed the same.
+     */
+    recentChanges: async (q: RecentChangesQuery & { from: string; to: string }) => {
+      const params: unknown[] = [q.from, q.to, CHANGE_TYPES];
+      const filters = [
+        q.changeType && `t.change_type = $${params.push(q.changeType)}`,
+        q.country && `t.country_code = $${params.push(q.country)}`,
+        q.department && `t.department = $${params.push(q.department)}`,
+      ].filter(Boolean);
+      const changes = `WITH timeline AS (
+          SELECT ch.*, ch.base_salary + ch.allowances AS annual,
+                 lag(ch.base_salary + ch.allowances) OVER w AS prev_annual,
+                 lag(ch.job_title) OVER w AS prev_title,
+                 lag(ch.country_code) OVER w AS prev_country,
+                 lag(ch.currency_code) OVER w AS prev_currency
+            FROM employee_changes ch
+          WINDOW w AS (PARTITION BY ch.employee_id ORDER BY ch.effective_date, ch.id))
+        SELECT t.*, e.employee_code, e.first_name, e.last_name, u.name AS changed_by_name
+          FROM timeline t
+          JOIN employees e ON e.id = t.employee_id
+          JOIN hr_users u ON u.id = t.changed_by
+         WHERE t.effective_date BETWEEN $1 AND $2
+           AND t.change_type = ANY($3::text[])
+           ${filters.map((f) => `AND ${f}`).join(' ')}`;
+      const countParams = [...params];
+
+      const { rows: items } = await db.query(
+        `SELECT id::text, employee_id AS "employeeId", employee_code AS "employeeCode",
+                first_name AS "firstName", last_name AS "lastName", change_type AS "changeType",
+                effective_date AS "effectiveDate", note,
+                prev_title AS "oldJobTitle", job_title AS "newJobTitle",
+                prev_country AS "oldCountryCode", country_code AS "newCountryCode",
+                prev_annual AS "oldAnnualSalary", annual AS "newAnnualSalary",
+                prev_currency AS "oldCurrencyCode", currency_code AS "newCurrencyCode",
+                CASE WHEN prev_currency = currency_code AND prev_annual > 0
+                     THEN round((annual - prev_annual) / prev_annual * 100, 2) END
+                  AS "salaryChangePercent",
+                changed_by_name AS "changedBy"
+           FROM (${changes}) c
+          ORDER BY effective_date DESC, id DESC
+          LIMIT $${params.push(q.pageSize)} OFFSET $${params.push((q.page - 1) * q.pageSize)}`,
+        params,
+      );
+      const { rows } = await db.query<{ total: number }>(
+        `SELECT count(*)::int AS total FROM (${changes}) c`,
+        countParams,
+      );
+      return { items, total: rows[0]!.total };
+    },
+
+    /** Q7: who is serving notice, and how much annual pay leaves with them. */
+    leavers: async (f: InsightsQuery, today: string) => {
+      const leaving = <T extends QueryResultRow>(select: (pay: string) => string) =>
+        query<T>(f, today, select, 'leaving');
+      const total = 'round(coalesce(sum(converted), 0), 2) AS "totalAnnualSalary"';
+      const [summary] = await leaving<{ headcount: number; totalAnnualSalary: string }>(
+        (pay) => `SELECT count(*)::int AS headcount, ${total} FROM ${pay}`,
+      );
+      return {
+        ...summary!,
+        byDepartment: await leaving(
+          (pay) => `SELECT department, count(*)::int AS headcount, ${total}
+                      FROM ${pay} GROUP BY department ORDER BY sum(converted) DESC, department`,
+        ),
+        byCountry: await leaving(
+          (pay) => `SELECT country_code AS "countryCode", country_name AS "countryName",
+                           count(*)::int AS headcount, ${total}
+                      FROM ${pay} GROUP BY country_code, country_name
+                     ORDER BY sum(converted) DESC, country_name`,
+        ),
+        employees: await leaving(
+          (pay) => `SELECT id, employee_code AS "employeeCode", first_name AS "firstName",
+                           last_name AS "lastName", job_title AS "jobTitle", department,
+                           country_code AS "countryCode", exit_type AS "exitType",
+                           last_working_day AS "lastWorkingDay",
+                           round(converted, 2) AS "convertedAnnualSalary"
+                      FROM ${pay} ORDER BY last_working_day, employee_code`,
+        ),
+      };
     },
 
     /** Q3: departments ranked by what they cost. */

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { countryCode } from '../employees/employee.schemas.ts';
+import { CHANGE_TYPES, countryCode, isoDate } from '../employees/employee.schemas.ts';
 import { currencyCode } from '../rates/rates.schemas.ts';
 
 export const insightsQuery = z.object({
@@ -27,3 +27,15 @@ export const outliersQuery = z.object({
 });
 
 export type OutliersQuery = z.infer<typeof outliersQuery>;
+
+export const recentChangesQuery = z.object({
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  changeType: z.enum(CHANGE_TYPES).optional(),
+  country: countryCode.optional(),
+  department,
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+export type RecentChangesQuery = z.infer<typeof recentChangesQuery>;

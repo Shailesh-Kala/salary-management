@@ -1,8 +1,14 @@
 import type { Clock } from '../../lib/clock.ts';
+import { addDays } from '../../lib/dates.ts';
 import { invalidField } from '../../lib/errors.ts';
 import type { RateRepos } from '../rates/rates.repository.ts';
 import type { InsightRepos } from './insights.repository.ts';
-import type { InsightsQuery, JobTitleQuery, OutliersQuery } from './insights.schemas.ts';
+import type {
+  InsightsQuery,
+  JobTitleQuery,
+  OutliersQuery,
+  RecentChangesQuery,
+} from './insights.schemas.ts';
 
 export type InsightsServiceDeps = {
   clock: Clock;
@@ -30,6 +36,22 @@ export function createInsightsService({ clock, repos, rates }: InsightsServiceDe
       if (!currencyCode) throw invalidField('country', 'Unsupported country');
       return { country: q.country, currencyCode, items: await repos.byJobTitle(q, clock.today()) };
     },
+
+    /** Defaults to the last 90 days. */
+    async recentChanges(q: RecentChangesQuery) {
+      const to = q.to ?? clock.today();
+      const from = q.from ?? addDays(to, -90);
+      if (from > to) throw invalidField('from', 'Start date must be on or before the end date');
+      return {
+        from,
+        to,
+        ...(await repos.recentChanges({ ...q, from, to })),
+        page: q.page,
+        pageSize: q.pageSize,
+      };
+    },
+
+    leavers: (q: InsightsQuery) => answer(q, () => repos.leavers(q, clock.today())),
 
     outliers: async (q: OutliersQuery) => ({
       low: q.low,
