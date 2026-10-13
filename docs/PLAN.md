@@ -134,7 +134,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR records raises, promotions and relocations with notes, and sees the history.*
 
 ## Slice F: Resignation and exit
-18. [ ] **Exit and withdraw API.**
+18. [x] **Exit and withdraw API.**
     - Unit tests:
       - `hire ≤ notice ≤ last working day`
       - withdraw only while on notice

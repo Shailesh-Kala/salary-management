@@ -488,3 +488,13 @@ next
 ```
 
 **Response:** TDD: failing RTL tests (history newest first with type, date, note, old → new lines in the right currency, and author; Save disabled until the note has 5+ chars; promotion posts the loaded version without `countryCode`/`hireDate` and refreshes history; relocation clears pay, asks for a new country, relabels amounts in its currency and stays disabled until both amounts are entered; server field error shown in the dialog). Then `HistoryList`, `ChangeDialog` (pre-filled current values, relocation/correction-only fields, exited → correction only) and the detail page's History section. Refactored the shared version-conflict alert. 237 tests pass. Slice E done.
+
+---
+
+## 33. Phase 3 — Task 18: Exit and withdraw API
+
+```text
+next
+```
+
+**Response:** TDD: failing unit tests for pure `planExit` (hire ≤ notice ≤ last working day, notice not future and not before the latest change, immediate and back-dated exits allowed, no second exit) and `planWithdraw` (only while on notice), plus schema tests; integration tests for resignation (on notice, `exit` history entry, list `status` filter), back-dated termination (exited), stale version 409, 400 field error, withdrawal (active again, fields cleared, `exit_withdrawn` effective today) and nothing-to-withdraw. Implemented `POST /employees/:id/exit` and `/exit/withdraw` sharing one locked-transaction helper; fixed my test fixtures that lacked `exitType`. Refactored shared `invalidField`/`withStatus` helpers. 258 tests pass.
