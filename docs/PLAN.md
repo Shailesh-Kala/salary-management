@@ -277,7 +277,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - **T9:** a failure after sending, then a retry → exactly 1 email; a failure before sending, then a retry → exactly 1 email
       - the file is not rebuilt on retry
       - the cleanup job is scheduled at `expires_at`
-39. [ ] **Export download rules and cleanup.**
+39. [x] **Export download rules and cleanup.**
     - Integration tests:
       - the requester downloads → 200 and audited `downloaded`
       - **T4:** another HR user → 403, audited `forbidden`, no file returned

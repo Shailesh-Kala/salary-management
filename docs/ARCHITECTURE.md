@@ -343,7 +343,7 @@ Base path `/api`. JSON in and out unless noted. **All routes except `GET /health
 | `GET /api/exports/employees` | Direct download | `format=csv\|xlsx\|pdf` plus the list filters. PDF with > 1,000 rows → `422 EXPORT_TOO_LARGE` (the UI then offers email) |
 | `POST /api/exports/employees/email` | Queue a large PDF | List filters; `202 {exportId}`; sent to the requester's own email |
 | `GET /api/exports` | My emailed exports and their status | |
-| `GET /api/exports/:id/download` | Download an emailed export | Called by the SPA page `/exports/:id` with `fetch`, not linked directly. `403` if not the requester, `410` if expired or deleted; every attempt audited |
+| `GET /api/exports/:id/download` | Download an emailed export | Called by the SPA page `/exports/:id` with `fetch`, not linked directly. `403` if not the requester, `410` if expired or deleted; each of these refusals and every successful download is audited. Unknown id or a direct (non-emailed) export → `404`; still being built → `409`; failed → `410` (not audited: no file was involved) |
 
 ## 5. Folder structure
 ```

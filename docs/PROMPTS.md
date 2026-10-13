@@ -735,3 +735,13 @@ next
 ```
 
 **Response:** Task 38: `POST /api/exports/employees/email` queues the PDF; the job builds it once, schedules the cleanup for 24 h later and emails the requester only a link to the app page (no pay data — T11), and retries send exactly one email whether the job failed before or after sending (T9). Your local `.env` has a non-numeric `SMTP_PORT`, which the server now rejects at start-up.
+
+---
+
+## 57. Phase 3 — Task 39: Export download rules and cleanup
+
+```text
+next
+```
+
+**Response:** Task 39: the emailed PDF downloads only for the person who requested it; anyone else gets 403 (T4) and an expired or deleted link gets 410 (T5), each recorded in a new append-only download audit. The cleanup job deletes the file at expiry and does nothing if run again or too early (T6).

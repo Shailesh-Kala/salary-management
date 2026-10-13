@@ -328,3 +328,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Require SMTP settings at start-up; call nodemailer directly in the job; keep the built file of a failed export until its expiry.
 - **Why:** A fake mailer keeps tests fast and offline, and lets them count deliveries (T9). Optional SMTP means people who never email exports (and CI) need no mail settings. A file that nobody was told about has no purpose, so keeping salary data for it would be pointless.
 - **Trade-off:** A missing mail setting shows up as a failed export, not at start-up. The cleanup job scheduled for a failed export still runs once and finds nothing to delete.
+
+## D-053 — Export downloads audit what involves the file
+- **What:** `GET /api/exports/:id/download` records `downloaded`, `forbidden` or `expired` in the append-only `export_downloads` before returning anything. The requester check comes first, so someone else always gets 403, even after expiry. An export that is still queued (409), failed (410), unknown, or direct (404) is not audited.
+- **Alternatives:** Audit every request including those; return 404 instead of 403 to hide that the export exists.
+- **Why:** The audit exists to answer "who tried to get this file". A request for something with no file says nothing about that, and the outcome list in the design has only three values. 403 matches the design and the export ids are random UUIDs, so guessing one is impractical.
+- **Trade-off:** A colleague with a valid id learns that an export exists; the file stays out of reach.
