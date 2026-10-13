@@ -190,7 +190,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a past-month slip uses the snapshot in effect at month end, not the current salary
       - after a hire date is corrected to an earlier date, a slip for a month between the new hire date and the first snapshot uses the earliest snapshot
       - a slip for a month before a relocation uses the **old currency and country** (**T14**, slip part)
-27. [ ] **Slip PDF:** `?format=pdf`.
+27. [x] **Slip PDF:** `?format=pdf`.
     - Tests: `application/pdf`, body starts with `%PDF`, `Content-Disposition` filename includes the employee code and month.
 28. [ ] **Slip page:** month picker, print-friendly view, PDF download.
     - RTL test: the gross-only notice is shown, along with the earnings rows in the slip's currency.

@@ -292,3 +292,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** List state in React state only; a 401 check in every page.
 - **Why:** URLs survive reloads, can be bookmarked or shared between HR colleagues, and make the post-login return land on exactly the same filtered view. One central 401 rule covers every future page.
 - **Trade-off:** URL parameters must be validated on the server anyway (they are), and the page has to tolerate hand-edited URLs (invalid values get a 400 shown in an alert).
+
+## D-047 — Slip PDFs with pdfkit's built-in fonts; amounts shown with currency codes
+- **What:** Slips are rendered server-side with `pdfkit` (A4, Helvetica), amounts as `INR 4,63,108.33` (en-IN grouping) rather than with symbols; the title metadata is `Salary slip <code> <month>`; the file is sent as `slip-<code>-<month>.pdf` with a quoted `Content-Disposition`.
+- **Alternatives:** Embed a Unicode font (e.g. Noto Sans) to print ₹/€/£; HTML-to-PDF via a headless browser.
+- **Why:** The built-in fonts lack the ₹ glyph; currency codes are unambiguous for every currency without shipping a ~400 kB font. A headless browser is a heavy dependency for one page.
+- **Trade-off:** Slips show "INR" instead of "₹". Swapping in an embedded font is a one-file change if symbols are wanted.

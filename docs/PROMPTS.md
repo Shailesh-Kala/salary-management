@@ -582,3 +582,13 @@ next
 ```
 
 **Response:** TDD: failing unit tests for pure `buildSlip` (annual ÷ 12 half-up per line, gross = sum of rounded lines, month lengths incl. leap years, hire-month and last-working-day-month allowed but not beyond, current month allowed but not future) and integration tests (past-month slip uses the snapshot at month end after a promotion; months before a relocation keep India/INR (T14 slip part); earliest-snapshot fallback after a hire-date correction; 400 for future, pre-hire and malformed months; 404). Implemented the `slips` module: `GET /api/employees/:id/slips/:month`, `addAmounts`, `lastDayOfMonth`. 326 tests pass.
+
+---
+
+## 42. Phase 3 — Task 27: Slip PDF
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for `?format=pdf` (application/pdf, `%PDF-` header, `attachment; filename="slip-EMP-00001-2026-09.pdf"`, title metadata), a JSON 400 for months outside employment even when a PDF is asked for, and 400 for an unknown format. Implemented `renderSlipPdf` with `pdfkit` (A4: period, employee, earnings table, bold gross, gross-only notice) and the route; set a quoted `Content-Disposition` explicitly (Express 5 omits the quotes). Rendered a real seeded employee's slip and checked it visually. Logged D-047 (currency codes instead of ₹ in built-in fonts). 332 tests pass.
