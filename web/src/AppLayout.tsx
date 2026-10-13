@@ -26,6 +26,9 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
             <Button color="inherit" component={Link} to="/employees">
               Employees
             </Button>
+            <Button color="inherit" component={Link} to="/insights">
+              Insights
+            </Button>
             <Button color="inherit" component={Link} to="/exchange-rates">
               Exchange rates
             </Button>

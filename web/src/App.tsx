@@ -4,6 +4,7 @@ import { EmployeeDetailPage } from './pages/EmployeeDetailPage.tsx';
 import { EmployeeFormPage } from './pages/EmployeeFormPage.tsx';
 import { EmployeesPage } from './pages/EmployeesPage.tsx';
 import { ExchangeRatesPage } from './pages/ExchangeRatesPage.tsx';
+import { InsightsPage } from './pages/InsightsPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 
 export function AppRoutes() {
@@ -15,6 +16,7 @@ export function AppRoutes() {
         <Route path="/employees/new" element={<EmployeeFormPage />} />
         <Route path="/employees/:id" element={<EmployeeDetailPage />} />
         <Route path="/exchange-rates" element={<ExchangeRatesPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/employees" replace />} />
     </Routes>

@@ -175,7 +175,7 @@ describe('insights page', () => {
     expect(await screen.findByText('9,619')).toBeInTheDocument();
     expect(screen.getByText(/rates as of 2026-10-01/i)).toBeInTheDocument();
     expect(
-      within(section(/headcount and payroll/i)).getByText('₹6,380,37,16,300.00'),
+      within(section(/headcount and payroll/i)).getByText('₹63,80,37,16,300.00'),
     ).toBeInTheDocument();
     expect(within(section(/pay by country/i)).getByText('United States')).toBeInTheDocument();
     expect(within(section(/pay by department/i)).getByText('Engineering')).toBeInTheDocument();
