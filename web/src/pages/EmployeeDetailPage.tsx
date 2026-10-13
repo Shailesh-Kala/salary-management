@@ -17,14 +17,18 @@ import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api/client.ts';
 import {
   type EmployeeDetail,
+  EXIT_TYPE_LABELS,
   fieldErrors,
   type HistoryEntry,
   useFilterOptions,
 } from '../api/employees.ts';
 import { ChangeDialog } from '../components/ChangeDialog.tsx';
+import { ExitDialog } from '../components/ExitDialog.tsx';
 import { HistoryList } from '../components/HistoryList.tsx';
 import { StatusChip } from '../components/StatusChip.tsx';
 import { VersionConflictAlert } from '../components/VersionConflictAlert.tsx';
+import { WithdrawExitDialog } from '../components/WithdrawExitDialog.tsx';
+import { daysBetween } from '../lib/dates.ts';
 import { formatMoney } from '../lib/format.ts';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -110,7 +114,7 @@ function EditProfileDialog({
 
 export function EmployeeDetailPage() {
   const { id } = useParams();
-  const [dialog, setDialog] = useState<'profile' | 'change' | null>(null);
+  const [dialog, setDialog] = useState<'profile' | 'change' | 'exit' | 'withdraw' | null>(null);
   const employee = useQuery({
     queryKey: ['employee', id],
     queryFn: () => api<EmployeeDetail>(`/employees/${id}`),
@@ -142,6 +146,16 @@ export function EmployeeDetailPage() {
           <Button variant="outlined" onClick={() => setDialog('profile')}>
             Edit profile
           </Button>
+          {e.status === 'active' && (
+            <Button variant="outlined" color="warning" onClick={() => setDialog('exit')}>
+              Record exit
+            </Button>
+          )}
+          {e.status === 'on_notice' && (
+            <Button variant="outlined" color="warning" onClick={() => setDialog('withdraw')}>
+              Withdraw exit
+            </Button>
+          )}
           <Button variant="contained" onClick={() => setDialog('change')}>
             Record change
           </Button>
@@ -160,7 +174,16 @@ export function EmployeeDetailPage() {
             <Detail label="Department">{e.department}</Detail>
             <Detail label="Country">{e.countryName}</Detail>
             <Detail label="Hire date">{e.hireDate}</Detail>
-            {e.lastWorkingDay && <Detail label="Last working day">{e.lastWorkingDay}</Detail>}
+            {e.exitType && e.noticeDate && e.lastWorkingDay && (
+              <>
+                <Detail label="Exit type">{EXIT_TYPE_LABELS[e.exitType]}</Detail>
+                <Detail label="Notice date">{e.noticeDate}</Detail>
+                <Detail label="Last working day">{e.lastWorkingDay}</Detail>
+                <Detail label="Notice period">
+                  {daysBetween(e.noticeDate, e.lastWorkingDay)} days
+                </Detail>
+              </>
+            )}
           </Stack>
         </Paper>
         <Paper sx={{ p: 3, flex: 1 }}>
@@ -187,6 +210,8 @@ export function EmployeeDetailPage() {
       </Paper>
 
       {dialog === 'profile' && <EditProfileDialog employee={e} onClose={() => setDialog(null)} />}
+      {dialog === 'exit' && <ExitDialog employee={e} onClose={() => setDialog(null)} />}
+      {dialog === 'withdraw' && <WithdrawExitDialog employee={e} onClose={() => setDialog(null)} />}
       {dialog === 'change' && (
         <ChangeDialog employee={e} countries={countries} onClose={() => setDialog(null)} />
       )}

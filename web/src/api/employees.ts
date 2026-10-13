@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from './client.ts';
 
 export type EmployeeStatus = 'active' | 'on_notice' | 'exited';
@@ -77,3 +77,37 @@ export const RECORDABLE_CHANGE_TYPES = [
   'correction',
   'other',
 ] as const;
+
+export const EXIT_TYPE_LABELS = { resigned: 'Resigned', terminated: 'Terminated' } as const;
+
+/**
+ * Posts an event (change, exit, withdrawal) for an employee; on success refreshes the employee,
+ * their history and the list, then calls `onDone`.
+ */
+export function useEmployeeEvent(employeeId: string, path: string, onDone: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: object) =>
+      api<{ employee: EmployeeDetail }>(`/employees/${employeeId}${path}`, {
+        method: 'POST',
+        body,
+      }),
+    onSuccess: ({ employee }) => {
+      queryClient.setQueryData(['employee', employeeId], employee);
+      void queryClient.invalidateQueries({ queryKey: ['employee-history', employeeId] });
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+      onDone();
+    },
+  });
+}
+
+/** The version-conflict flag, a general message, and per-field messages from a failed save. */
+export function saveErrors(error: unknown) {
+  const fields = fieldErrors(error);
+  const conflict = error instanceof ApiError && error.code === 'VERSION_CONFLICT';
+  const general =
+    error instanceof ApiError && !conflict
+      ? (fields[''] ?? (Object.keys(fields).length ? null : error.message))
+      : null;
+  return { conflict, general, fields };
+}
