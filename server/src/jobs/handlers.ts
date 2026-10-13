@@ -5,6 +5,7 @@ import type { Mailer } from '../lib/mailer.ts';
 import { employeeRepositories } from '../modules/employees/employees.repository.ts';
 import { createEmployeesService } from '../modules/employees/employees.service.ts';
 import { createEmailedExportHandler } from '../modules/exports/email-job.ts';
+import { exportRepositories } from '../modules/exports/exports.repository.ts';
 import { createApplyImportHandler } from '../modules/imports/apply-job.ts';
 import { importRepositories } from '../modules/imports/imports.repository.ts';
 import { createValidateImportHandler } from '../modules/imports/validate-job.ts';
@@ -39,6 +40,9 @@ export function jobHandlers({
     import_validate: Object.assign(createValidateImportHandler({ db, clock }), failImport),
     import_apply: Object.assign(createApplyImportHandler({ db, clock }), failImport),
     export_pdf: createEmailedExportHandler({ db, clock, mailer, employees, appBaseUrl }),
+    /** Runs when the link expires; does nothing if the file is already gone. */
+    export_cleanup: (job) =>
+      exportRepositories(db).deleteExpiredFile(String(job.payload.exportId), clock.now()),
     /** Runs at the preview's deadline; does nothing if it was confirmed or cancelled first. */
     import_expire: (job) => imports.expireDue(clock.now(), importId(job)),
   };

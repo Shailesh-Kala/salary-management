@@ -25,6 +25,52 @@ export function createExportsService(deps: {
   inTransaction: <T>(fn: (tx: { exports: ExportRepos; queue: Queue }) => Promise<T>) => Promise<T>;
 }) {
   return {
+    /**
+     * The emailed PDF, for its requester only and only until it expires. Every attempt that gets
+     * past the lookup is audited (before anything is returned), including refused ones.
+     */
+    async download(id: string, actor: AuthUser) {
+      const record = await deps.repos.findForDownload(id);
+      if (!record) throw new AppError('NOT_FOUND', 404, 'Export not found');
+      const now = deps.clock.now();
+      const refuse = async (outcome: 'forbidden' | 'expired', error: AppError) => {
+        await deps.repos.recordDownload(id, actor.id, outcome, now);
+        throw error;
+      };
+
+      if (record.requestedBy !== actor.id) {
+        return refuse(
+          'forbidden',
+          new AppError(
+            'FORBIDDEN',
+            403,
+            'Only the person who requested this export can download it',
+          ),
+        );
+      }
+      if (record.status === 'queued') {
+        throw new AppError(
+          'INVALID_STATE',
+          409,
+          'This export is still being prepared. Try again shortly.',
+        );
+      }
+      if (record.status === 'failed') {
+        throw new AppError('GONE', 410, 'This export could not be prepared. Request it again.');
+      }
+      const expired = () =>
+        refuse(
+          'expired',
+          new AppError('GONE', 410, 'This export link has expired. Request the export again.'),
+        );
+      if (record.deletedAt || record.expiresAt! <= now) return expired();
+
+      const stored = await deps.repos.readFile(id);
+      if (!stored?.file) return expired(); // deleted between the check and the read
+      await deps.repos.recordDownload(id, actor.id, 'downloaded', now);
+      return { filename: stored.fileName, file: stored.file };
+    },
+
     /** Queues a PDF of any size to be built in the background and emailed to the requester. */
     async requestEmailed(filters: ExportFilters, actor: AuthUser) {
       const { total } = await deps.employees.list({ ...filters, page: 1, pageSize: 1 });

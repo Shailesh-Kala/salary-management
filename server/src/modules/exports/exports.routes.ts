@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import { type Response, Router } from 'express';
 import { finished } from 'node:stream/promises';
 import { z } from 'zod';
+import { AppError } from '../../lib/errors.ts';
 import { listEmployeesQuery } from '../employees/employee.schemas.ts';
 import { AMOUNT_COLUMNS, csvRow, DATE_COLUMNS, exportHeader, xlsxRow } from './columns.ts';
 import type { ExportsService } from './exports.service.ts';
@@ -72,6 +73,18 @@ export function exportRoutes(exports: ExportsService) {
     }
     res.status(200).set(headers);
     await (format === 'csv' ? streamCsv(res, result) : streamXlsx(res, result));
+  });
+
+  routes.get('/exports/:id/download', async (req, res) => {
+    const id = z.uuid().safeParse(req.params.id);
+    if (!id.success) throw new AppError('NOT_FOUND', 404, 'Export not found');
+    const { filename, file } = await exports.download(id.data, req.user!);
+    res
+      .set({
+        'Content-Type': CONTENT_TYPES.pdf,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      })
+      .send(file);
   });
 
   routes.post('/exports/employees/email', async (req, res) => {

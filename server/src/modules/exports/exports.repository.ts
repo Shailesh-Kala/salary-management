@@ -72,6 +72,51 @@ export function exportRepositories(db: Pool | PoolClient) {
       await db.query('UPDATE exports SET email_sent_at = NULL WHERE id = $1', [id]);
     },
 
+    /** Who may download, and whether the file is still there (the file itself is not loaded). */
+    findForDownload: async (id: string) =>
+      (
+        await db.query<{
+          requestedBy: string;
+          status: string;
+          expiresAt: Date | null;
+          deletedAt: Date | null;
+        }>(
+          `SELECT requested_by AS "requestedBy", status, expires_at AS "expiresAt",
+                  deleted_at AS "deletedAt"
+             FROM exports WHERE id = $1 AND delivery = 'email'`,
+          [id],
+        )
+      ).rows[0] ?? null,
+
+    readFile: async (id: string) =>
+      (
+        await db.query<{ file: Buffer | null; fileName: string }>(
+          'SELECT file, file_name AS "fileName" FROM exports WHERE id = $1',
+          [id],
+        )
+      ).rows[0] ?? null,
+
+    recordDownload: async (
+      id: string,
+      userId: string,
+      outcome: 'downloaded' | 'forbidden' | 'expired',
+      at: Date,
+    ) => {
+      await db.query(
+        'INSERT INTO export_downloads (export_id, user_id, outcome, at) VALUES ($1, $2, $3, $4)',
+        [id, userId, outcome, at],
+      );
+    },
+
+    /** Deletes the file once the link has expired; does nothing if it is already gone. */
+    deleteExpiredFile: async (id: string, now: Date) => {
+      await db.query(
+        `UPDATE exports SET file = NULL, deleted_at = $2
+          WHERE id = $1 AND file IS NOT NULL AND expires_at <= $2`,
+        [id, now],
+      );
+    },
+
     /** Ends an export that will never be emailed; its file (if built) is dropped. */
     markFailed: async (id: string, error: string) => {
       await db.query(
