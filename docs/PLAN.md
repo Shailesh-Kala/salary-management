@@ -198,7 +198,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR produces monthly slips.*
 
 ## Slice J: Direct export
-29. [ ] **CSV and Excel export API.**
+29. [x] **CSV and Excel export API.**
     - Unit tests: formula-injection escaping (`= + - @ \t \r`).
     - Integration tests:
       - CSV and xlsx content types and `Content-Disposition`

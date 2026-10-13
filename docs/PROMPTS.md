@@ -602,3 +602,13 @@ next
 ```
 
 **Response:** TDD: failing RTL tests (slip with period, employee, earnings and gross in the slip's currency, gross-only notice, Print button and PDF link; switching month loads that month in its own currency and updates the URL; a 400 explains why no slip exists and hides the download; the employee page links to the slip). Built `/employees/:id/slip?month=` with a native month picker, print-friendly layout (app bar and controls hidden when printing) and a same-origin PDF link; added "Salary slip" on the employee page. 336 tests pass. Slice I done.
+
+---
+
+## 44. Phase 3 — Task 29: CSV and Excel export API
+
+```text
+next
+```
+
+**Response:** TDD: failing tests for `spreadsheetSafe` (= + - @ tab CR prefixed) and for `GET /api/exports/employees` (CSV: UTF-8 with BOM, exact header + `annual_salary_<currency>`, rows, formula escaping, filters and currency; Excel: one sheet, frozen header, numbers and dates as typed cells; an `exports` audit row with filters and row count; 400 for unknown format). Cleared an npm audit advisory with a `uuid` override for exceljs (D-048). Implemented migration `0004` (exports), column mapping, a service that audits then yields 1,000-row batches, CSV/Excel streaming, and an error-handler guard for failures after the response has started. Measured 10k rows: CSV 0.41 s, Excel 0.66 s. 350 tests pass.

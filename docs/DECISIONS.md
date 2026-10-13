@@ -298,3 +298,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Embed a Unicode font (e.g. Noto Sans) to print ₹/€/£; HTML-to-PDF via a headless browser.
 - **Why:** The built-in fonts lack the ₹ glyph; currency codes are unambiguous for every currency without shipping a ~400 kB font. A headless browser is a heavy dependency for one page.
 - **Trade-off:** Slips show "INR" instead of "₹". Swapping in an embedded font is a one-file change if symbols are wanted.
+
+## D-048 — Override exceljs's `uuid` dependency to 11.1.1
+- **What:** `package.json` `overrides` pins `exceljs → uuid` to 11.1.1 (exceljs 4.4.0 asks for uuid 8). `npm audit` reports 0 vulnerabilities.
+- **Alternatives:** `npm audit fix --force` (downgrades exceljs to 3.4.0, a breaking change); accept the moderate advisory; switch spreadsheet library.
+- **Why:** The advisory (GHSA-w5hq-g745-h8pq) is in uuid's v3/v5/v6 with a caller buffer; exceljs only calls `v4()`, which 11.1.1 still exports in CommonJS — verified by the export tests and a workbook smoke test.
+- **Trade-off:** We run exceljs with a newer uuid than it declares; revisit when exceljs releases an update.
