@@ -34,7 +34,8 @@ async function streamXlsx(res: Response, { currency, batches }: Export) {
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res, useStyles: true });
   const sheet = workbook.addWorksheet('Employees', { views: [{ state: 'frozen', ySplit: 1 }] });
   for (const column of DATE_COLUMNS) sheet.getColumn(column).numFmt = 'yyyy-mm-dd';
-  for (const column of AMOUNT_COLUMNS) sheet.getColumn(column).numFmt = '#,##0.00';
+  // Plain numbers, no digit grouping, so they calculate and re-import cleanly (D-049).
+  for (const column of AMOUNT_COLUMNS) sheet.getColumn(column).numFmt = '0.00';
   sheet.addRow(exportHeader(currency)).commit();
   for await (const batch of batches) {
     for (const employee of batch) sheet.addRow(xlsxRow(employee)).commit();

@@ -1,10 +1,12 @@
-// en-IN groups thousands as lakhs/crores (₹20,00,000.00), as HR in India reads them.
+// Display only: INR in lakhs/crores (₹20,00,000.00), every other currency in thousands
+// ($1,234,567.89). Files (CSV/Excel) keep plain numbers (D-049).
 const formatters = new Map<string, Intl.NumberFormat>();
 
 export function formatMoney(amount: string, currency: string) {
   let format = formatters.get(currency);
   if (!format) {
-    format = new Intl.NumberFormat('en-IN', { style: 'currency', currency });
+    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+    format = new Intl.NumberFormat(locale, { style: 'currency', currency });
     formatters.set(currency, format);
   }
   return format.format(Number(amount));

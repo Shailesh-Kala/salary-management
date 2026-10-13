@@ -13,6 +13,6 @@ describe('formatMoney', () => {
     ['GBP', '£1,234,567.89'],
     ['SGD', 'SGD 1,234,567.89'],
   ])('groups %s internationally, in thousands', (currency, expected) => {
-    expect(formatMoney('1234567.89', currency).replace(/ /g, ' ')).toBe(expected);
+    expect(formatMoney('1234567.89', currency).replace(/\u00a0/g, ' ')).toBe(expected);
   });
 });
