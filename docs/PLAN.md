@@ -227,7 +227,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a valid upload → 202 and status `validating`
       - each failed check → 400 / 413
       - **T10:** upload while another import is active → 409 and nothing queued; accepted again after cancel
-34. [ ] **Import validation job → preview.**
+34. [x] **Import validation job → preview.**
     - Unit tests on the row validator:
       - field rules
       - example rows rejected

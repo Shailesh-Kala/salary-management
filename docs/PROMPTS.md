@@ -684,3 +684,13 @@ I want come back to the response I see earlier was: [the old Task 33 response] t
 ```
 
 **Response:** Nothing is failing: "failing tests" meant the test-first step (tests written before the code), all 408 tests, lint, typecheck and CI pass, and the one lint failure was fixed in the next commit; the rest of import is planned in Tasks 34–37.
+
+---
+
+## 52. Phase 3 — Task 34: Import validation and preview
+
+```text
+Next
+```
+
+**Response:** Task 34: the validation job checks every row with the import rules (T18), stores a preview with exact counts (T1), offers the rejected rows as a CSV that can be fixed and re-uploaded (T3), and schedules the 24-hour expiry; closes the "stuck in validating" gap.
