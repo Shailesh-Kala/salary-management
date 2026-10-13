@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import { createApp } from './app.ts';
 import { loadConfig } from './config.ts';
+import { assertMigrated } from './db/migrate.ts';
 import { createPool } from './db/pool.ts';
 import { jobHandlers } from './jobs/handlers.ts';
 import { createQueue } from './jobs/queue.ts';
@@ -12,6 +13,13 @@ const config = loadConfig(process.env);
 const logger = pino();
 const db = createPool(config.DATABASE_URL);
 const clock = createClock(config.APP_TIMEZONE);
+
+try {
+  await assertMigrated(db);
+} catch (err) {
+  logger.fatal({ err: err instanceof Error ? err.message : err }, 'cannot start');
+  process.exit(1);
+}
 
 const worker = createWorker({
   queue: createQueue(db, clock),
