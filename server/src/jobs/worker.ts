@@ -1,8 +1,14 @@
 import type { Logger } from 'pino';
 import type { Job, Queue } from './queue.ts';
 
-/** Must be idempotent: a retried job re-runs it after a crash part-way through (D-020). */
-export type JobHandler = (job: Job) => Promise<void>;
+/**
+ * Must be idempotent: a retried job re-runs it after a crash part-way through (D-020).
+ * `onGiveUp` runs once the job will not be retried, before it is marked failed, so a crash in
+ * between leads to it running again rather than not at all.
+ */
+export type JobHandler = ((job: Job) => Promise<void>) & {
+  onGiveUp?: (job: Job, error: string) => Promise<void>;
+};
 
 // ponytail: one serial worker in the API process; run several or a separate process if job
 // volume ever grows (D-030).
@@ -27,6 +33,10 @@ export function createWorker({
     if (!job) return false;
     const log = logger.child({ jobId: job.id, jobType: job.type, attempt: job.attempts });
     const handler = handlers[job.type];
+    const giveUp = async (message: string) => {
+      await handler?.onGiveUp?.(job, message);
+      await queue.fail(job, message, { permanent: true });
+    };
 
     if (!handler) {
       await queue.fail(job, `No handler for job type ${job.type}`, { permanent: true });
@@ -34,7 +44,7 @@ export function createWorker({
       return true;
     }
     if (job.attempts > job.maxAttempts) {
-      await queue.fail(job, `Abandoned after ${job.maxAttempts} attempts`, { permanent: true });
+      await giveUp(`Abandoned after ${job.maxAttempts} attempts`);
       log.error('job failed: its last attempt was abandoned');
       return true;
     }
@@ -45,7 +55,8 @@ export function createWorker({
     } catch (err) {
       // Messages only: job errors must not carry employee data into logs.
       const message = err instanceof Error ? err.message : String(err);
-      await queue.fail(job, message);
+      if (job.attempts >= job.maxAttempts) await giveUp(message);
+      else await queue.fail(job, message);
       log.error({ error: message }, 'job attempt failed');
     }
     return true;

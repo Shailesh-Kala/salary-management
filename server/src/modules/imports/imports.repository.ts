@@ -11,6 +11,7 @@ export type ImportRecord = {
   changeType: ImportForm['changeType'];
   effectiveDate: string;
   note: string;
+  previewExpiresAt: Date | null;
 };
 
 export function importRepositories(db: Pool | PoolClient) {
@@ -47,7 +48,7 @@ export function importRepositories(db: Pool | PoolClient) {
         await db.query<ImportRecord>(
           `SELECT id, status, confirmed_by AS "confirmedBy", file_name AS "fileName", file,
                   change_type AS "changeType",
-                  effective_date AS "effectiveDate", note
+                  effective_date AS "effectiveDate", note, preview_expires_at AS "previewExpiresAt"
              FROM imports WHERE id = $1`,
           [id],
         )
@@ -253,6 +254,25 @@ export function importRepositories(db: Pool | PoolClient) {
           [id, from, to, now, extra.confirmedBy ?? null, extra.finished ?? false],
         )
       ).rowCount === 1,
+
+    /** Expires previews past their deadline (one import, or all when no id is given). */
+    expireDue: async (now: Date, id?: string) => {
+      await db.query(
+        `UPDATE imports SET status = 'expired', finished_at = $1
+          WHERE status = 'awaiting_confirmation' AND preview_expires_at <= $1
+            AND ($2::uuid IS NULL OR id = $2)`,
+        [now, id ?? null],
+      );
+    },
+
+    /** Ends an import whose background job gave up, so it no longer blocks new uploads. */
+    markFailed: async (id: string, error: string, now: Date) => {
+      await db.query(
+        `UPDATE imports SET status = 'failed', error = $2, finished_at = $3
+          WHERE id = $1 AND status IN ('validating', 'applying')`,
+        [id, error, now],
+      );
+    },
 
     activeImportId: async () =>
       (

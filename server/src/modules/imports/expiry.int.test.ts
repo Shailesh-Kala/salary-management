@@ -54,6 +54,11 @@ async function preview() {
   await worker.runOnce();
   return body.id as string;
 }
+/** Moves time on and signs in again (as another HR user): the earlier session has expired. */
+async function later(ms: number) {
+  clock.advance(ms);
+  ({ cookie } = await signIn(app, `hr-${clock.now().getTime()}@acme.local`));
+}
 const confirm = (id: string) =>
   request(app).post(`/api/imports/${id}/confirm`).set('Cookie', cookie);
 const getImport = async (id: string) =>
@@ -76,7 +81,7 @@ const employeeCount = async () =>
 describe('preview expiry (T12)', () => {
   it('refuses to confirm once 24 hours have passed, even before the expiry job runs', async () => {
     const id = await preview();
-    clock.advance(24 * HOUR);
+    await later(24 * HOUR);
 
     const res = await confirm(id);
 
@@ -91,11 +96,11 @@ describe('preview expiry (T12)', () => {
 
   it('expires the preview when its job runs, then lets a new upload in; running it again changes nothing', async () => {
     const id = await preview();
-    clock.advance(24 * HOUR - 1);
+    await later(24 * HOUR - 1);
     await worker.runOnce(); // not due yet
     expect((await getImport(id)).status).toBe('awaiting_confirmation');
 
-    clock.advance(1);
+    await later(1);
     await worker.runOnce();
 
     expect(await getImport(id)).toMatchObject({
@@ -118,7 +123,7 @@ describe('preview expiry (T12)', () => {
 
   it('never blocks a new upload with an overdue preview, even if its job has not run', async () => {
     const id = await preview();
-    clock.advance(25 * HOUR);
+    await later(25 * HOUR);
 
     expect((await upload()).status).toBe(202);
     expect((await getImport(id)).status).toBe('expired');
@@ -161,7 +166,7 @@ describe('import data cleared when an import ends (T13)', () => {
 
   it('clears them when the preview expires', async () => {
     const id = await preview();
-    clock.advance(24 * HOUR);
+    await later(24 * HOUR);
     await worker.runOnce();
 
     await expectCleared(id, ['update', 'create', 'rejected']);

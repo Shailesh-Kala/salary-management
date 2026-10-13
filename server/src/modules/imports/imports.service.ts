@@ -8,6 +8,8 @@ import { checkUpload, type ImportForm, TEMPLATE_HEADER, templateCsv } from './up
 
 const BOM = String.fromCharCode(0xfeff); // so Excel opens UTF-8 correctly
 const PREVIEW_REJECTED_LIMIT = 100;
+/** States in which the file and raw rows have been cleared (D-031). */
+const ENDED = ['completed', 'cancelled', 'failed', 'expired'];
 
 export type ImportsServiceDeps = {
   clock: Clock;
@@ -23,9 +25,17 @@ const isActiveImportConflict = (err: unknown) =>
 export function createImportsService({ clock, repos, inTransaction }: ImportsServiceDeps) {
   const notFound = () => new AppError('NOT_FOUND', 404, 'Import not found');
 
-  /** 404 if the import doesn't exist, otherwise 409: it is in the wrong state for `action`. */
+  /** 404 if the import doesn't exist, 410 if its preview expired, otherwise 409 (wrong state). */
   const refuse = async (id: string, action: string) => {
-    if (!(await repos.find(id))) throw notFound();
+    const record = await repos.find(id);
+    if (!record) throw notFound();
+    if (record.status === 'expired') {
+      throw new AppError(
+        'GONE',
+        410,
+        `This preview expired at ${record.previewExpiresAt!.toISOString()}. Upload the file again to import it.`,
+      );
+    }
     throw new AppError('INVALID_STATE', 409, `This import can no longer be ${action}`);
   };
 
@@ -48,6 +58,7 @@ export function createImportsService({ clock, repos, inTransaction }: ImportsSer
     /** Starts applying the valid rows in the background; the confirmer is the changes' author. */
     async confirm(id: string, actor: AuthUser) {
       const confirmed = await inTransaction(async ({ imports, queue }) => {
+        await imports.expireDue(clock.now(), id); // even if its expiry job hasn't run yet
         const moved = await imports.transition(
           id,
           ['awaiting_confirmation'],
@@ -87,6 +98,13 @@ export function createImportsService({ clock, repos, inTransaction }: ImportsSer
     async rejectedCsv(id: string) {
       const record = await repos.find(id);
       if (!record) throw notFound();
+      if (ENDED.includes(record.status)) {
+        throw new AppError(
+          'GONE',
+          410,
+          'The rejected rows are no longer stored: this import has ended. Use your original file.',
+        );
+      }
       const rows = await repos.rejectedRows(id);
       const lines = rows
         .filter((r) => r.raw)
@@ -112,6 +130,7 @@ export function createImportsService({ clock, repos, inTransaction }: ImportsSer
       const { rowCount } = checkUpload(file);
       try {
         return await inTransaction(async ({ imports, queue }) => {
+          await imports.expireDue(clock.now()); // an overdue preview never blocks a new upload
           const id = await imports.insert({
             ...form,
             uploadedBy: actor.id,
