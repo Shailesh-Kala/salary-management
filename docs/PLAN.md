@@ -174,7 +174,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - % salary change and old → new title
       - relocations shown with old → new country
       - leavers grouped by department and country, with the total annual salary converted
-25. [ ] **Insights page:** Q1–Q7 with country, department and currency filters and the rates "as of" date.
+25. [x] **Insights page:** Q1–Q7 with country, department and currency filters and the rates "as of" date.
     - RTL test: changing the currency re-queries with `currency`.
 
     ✅ *Usable: HR answers the seven pay questions.*

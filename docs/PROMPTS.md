@@ -560,3 +560,15 @@ next
 ```
 
 **Response:** TDD: failing integration tests — Q6: last-90-days default range, newest first, promotion with old → new title and +20.00 %, relocation IN → US with no % across currencies, hires excluded, wider range + change-type filter (+5.00 %), 400 for a reversed range and for `hire`; Q7: leavers (on notice only) totalled by department and country, listed by last working day, converted to USD (120,281.69), department filter. Implemented `/insights/recent-changes` (`lag()` window over history) and `/insights/leavers` (insights base query gained a `leaving` scope); moved `addDays` to `lib/dates.ts`. Measured 11–175 ms on the seeded DB. 313 tests pass.
+
+---
+
+## 40. Phase 3 — Task 25: Insights page
+
+```text
+next
+[Request interrupted by user for tool use]
+continue with the task
+```
+
+**Response:** TDD: failing RTL tests (every question answered in INR with the rates date and no job-title query without a country; switching currency re-queries Q1–Q3 and Q7 and updates the URL; choosing a country filters all seven and loads job-title ranges). Built `/insights` with one labelled region per question, URL-held filters, links from people to their employee page, and an Insights nav link; moved the dropdown into a shared `SelectFilter`. Corrected my mistyped en-IN expectation (₹63,80,37,16,300.00). After the interrupted (rejected) combined command, re-ran the checks in smaller steps and committed. Seed left unchanged (seeded-raises question still open). 316 tests pass. Slice H done.
