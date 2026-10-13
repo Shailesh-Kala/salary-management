@@ -84,3 +84,17 @@ describe('errorHandler', () => {
     expect(res.text).not.toContain('at ');
   });
 });
+
+describe('errorHandler after the response has started', () => {
+  it('closes the connection instead of appending a JSON error to a half-sent body', async () => {
+    const app = express();
+    app.use(pinoHttp({ logger: pino({ level: 'silent' }), genReqId: () => 'req-1' }));
+    app.get('/stream', (_req, res, next) => {
+      res.status(200).write('partial,data\n');
+      next(new Error('database went away mid-export'));
+    });
+    app.use(errorHandler);
+
+    await expect(request(app).get('/stream')).rejects.toThrow(/aborted|socket hang up/);
+  });
+});

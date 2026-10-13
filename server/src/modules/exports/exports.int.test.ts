@@ -136,7 +136,7 @@ describe('GET /api/exports/employees?format=xlsx', () => {
       'attachment; filename="employees-2026-10-12.xlsx"',
     );
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(res.body as Buffer);
+    await workbook.xlsx.load(new Uint8Array(res.body as Buffer).buffer);
     const sheet = workbook.worksheets[0]!;
     expect(workbook.worksheets).toHaveLength(1);
     expect(sheet.rowCount).toBe(4);

@@ -32,7 +32,13 @@ function toAppError(err: unknown): AppError | null {
   return null;
 }
 
-export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  // Mid-stream (e.g. an export) the status is already sent; let Express close the connection.
+  if (res.headersSent) {
+    req.log.error({ err }, 'error after response started');
+    next(err);
+    return;
+  }
   const requestId = String(req.id);
   const appError = toAppError(err);
 

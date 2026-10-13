@@ -22,6 +22,9 @@ import { createEmployeesService } from './modules/employees/employees.service.ts
 import { insightRepositories } from './modules/insights/insights.repository.ts';
 import { insightRoutes } from './modules/insights/insights.routes.ts';
 import { createInsightsService } from './modules/insights/insights.service.ts';
+import { exportRepositories } from './modules/exports/exports.repository.ts';
+import { exportRoutes } from './modules/exports/exports.routes.ts';
+import { createExportsService } from './modules/exports/exports.service.ts';
 import { rateRepositories } from './modules/rates/rates.repository.ts';
 import { slipRepositories } from './modules/slips/slips.repository.ts';
 import { slipRoutes } from './modules/slips/slips.routes.ts';
@@ -89,6 +92,7 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   api.use(apiRateLimit());
   api.use(protectedRoutes);
   api.use(employeeRoutes(employees));
+  api.use(exportRoutes(createExportsService({ clock, employees, repos: exportRepositories(db) })));
   api.use(slipRoutes(createSlipsService({ clock, repos: slipRepositories(db) })));
   api.use(
     insightRoutes(
