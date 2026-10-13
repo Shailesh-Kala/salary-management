@@ -246,7 +246,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - **T1:** the mixed fixture produces exact create / update / unchanged / rejected counts
       - **T3:** the rejected-rows CSV has the original header + `error`, one line per rejected row, and re-uploads cleanly after fixing
       - the `import_expire` job is scheduled at `preview_expires_at`
-35. [ ] **Import cancel / confirm / apply.**
+35. [x] **Import cancel / confirm / apply.**
     - Integration tests:
       - **T2:** cancel leaves `employees` and `employee_changes` (history + audit) unchanged
       - confirm is only allowed from `awaiting_confirmation` (else 409)

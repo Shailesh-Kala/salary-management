@@ -694,3 +694,14 @@ Next
 ```
 
 **Response:** Task 34: the validation job checks every row with the import rules (T18), stores a preview with exact counts (T1), offers the rejected rows as a CSV that can be fixed and re-uploaded (T3), and schedules the 24-hour expiry; closes the "stuck in validating" gap.
+
+---
+
+## 53. Phase 3 — Task 35: Import cancel, confirm and apply
+
+```text
+next
+please continue with task as I have added credits
+```
+
+**Response:** Task 35: cancel (any HR user, writes nothing — T2) and confirm (records who confirmed, queues the apply); the apply job writes each row in its own transaction with history from the import (T7, T14), re-checks rows, retries safely after a lost connection (T8) and rejects only a row that fails unexpectedly (T15).
