@@ -192,7 +192,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - a slip for a month before a relocation uses the **old currency and country** (**T14**, slip part)
 27. [x] **Slip PDF:** `?format=pdf`.
     - Tests: `application/pdf`, body starts with `%PDF`, `Content-Disposition` filename includes the employee code and month.
-28. [ ] **Slip page:** month picker, print-friendly view, PDF download.
+28. [x] **Slip page:** month picker, print-friendly view, PDF download.
     - RTL test: the gross-only notice is shown, along with the earnings rows in the slip's currency.
 
     ✅ *Usable: HR produces monthly slips.*

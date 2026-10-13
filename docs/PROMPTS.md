@@ -592,3 +592,13 @@ next
 ```
 
 **Response:** TDD: failing tests for `?format=pdf` (application/pdf, `%PDF-` header, `attachment; filename="slip-EMP-00001-2026-09.pdf"`, title metadata), a JSON 400 for months outside employment even when a PDF is asked for, and 400 for an unknown format. Implemented `renderSlipPdf` with `pdfkit` (A4: period, employee, earnings table, bold gross, gross-only notice) and the route; set a quoted `Content-Disposition` explicitly (Express 5 omits the quotes). Rendered a real seeded employee's slip and checked it visually. Logged D-047 (currency codes instead of ₹ in built-in fonts). 332 tests pass.
+
+---
+
+## 43. Phase 3 — Task 28: Slip page
+
+```text
+next
+```
+
+**Response:** TDD: failing RTL tests (slip with period, employee, earnings and gross in the slip's currency, gross-only notice, Print button and PDF link; switching month loads that month in its own currency and updates the URL; a 400 explains why no slip exists and hides the download; the employee page links to the slip). Built `/employees/:id/slip?month=` with a native month picker, print-friendly layout (app bar and controls hidden when printing) and a same-origin PDF link; added "Salary slip" on the employee page. 336 tests pass. Slice I done.
