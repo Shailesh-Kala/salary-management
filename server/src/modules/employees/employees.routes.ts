@@ -4,8 +4,10 @@ import { AppError } from '../../lib/errors.ts';
 import {
   changeEventSchema,
   createEmployeeSchema,
+  exitSchema,
   listEmployeesQuery,
   updateProfileSchema,
+  withdrawExitSchema,
 } from './employee.schemas.ts';
 import type { EmployeesService } from './employees.service.ts';
 
@@ -45,6 +47,17 @@ export function employeeRoutes(employees: EmployeesService) {
     res
       .status(201)
       .json(await employees.recordChange(id, changeEventSchema.parse(req.body), req.user!));
+  });
+
+  routes.post('/employees/:id/exit', async (req, res) => {
+    const id = employeeId(req);
+    res.status(201).json(await employees.recordExit(id, exitSchema.parse(req.body), req.user!));
+  });
+
+  routes.post('/employees/:id/exit/withdraw', async (req, res) => {
+    const id = employeeId(req);
+    const input = withdrawExitSchema.parse(req.body);
+    res.status(201).json(await employees.withdrawExit(id, input, req.user!));
   });
 
   routes.post('/employees', async (req, res) => {

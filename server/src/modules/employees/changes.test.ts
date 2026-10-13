@@ -11,6 +11,7 @@ const employee: CurrentState = {
   countryCode: 'IN',
   currencyCode: 'INR',
   hireDate: '2024-04-01',
+  exitType: null,
   noticeDate: null,
   lastWorkingDay: null,
 };
@@ -178,7 +179,12 @@ describe('planChange: hire date correction', () => {
   });
 
   it('rejects a hire date after the notice date', () => {
-    const leaving = { ...employee, noticeDate: '2024-06-01', lastWorkingDay: '2024-07-31' };
+    const leaving = {
+      ...employee,
+      exitType: 'resigned' as const,
+      noticeDate: '2024-06-01',
+      lastWorkingDay: '2024-07-31',
+    };
 
     expect(() =>
       plan({ changeType: 'correction', hireDate: '2024-06-02' }, leaving, {
@@ -190,7 +196,12 @@ describe('planChange: hire date correction', () => {
 });
 
 describe('planChange: exited employees', () => {
-  const exited = { ...employee, noticeDate: '2026-08-01', lastWorkingDay: '2026-09-30' };
+  const exited = {
+    ...employee,
+    exitType: 'resigned' as const,
+    noticeDate: '2026-08-01',
+    lastWorkingDay: '2026-09-30',
+  };
 
   it('accepts only corrections once the employee has left', () => {
     expect(() => plan({ baseSalary: '2000000' }, exited)).toThrow(

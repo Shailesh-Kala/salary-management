@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import type { AuditedField } from './changes.ts';
 import type { ListEmployeesQuery } from './employee.schemas.ts';
+import type { ExitFields } from './lifecycle.ts';
 import type { EmployeeStatus } from './status.ts';
 
 export type EmployeeRow = {
@@ -253,6 +254,22 @@ export function employeeRepositories(db: Pool | PoolClient) {
         );
         return rows[0] as EmployeeDetail;
       },
+
+      /** Sets or clears the exit fields and bumps the version. */
+      setExit: async (id: string, exit: ExitFields, now: Date) =>
+        (
+          await db.query<EmployeeDetail>(
+            `WITH updated AS (
+               UPDATE employees
+                  SET exit_type = $2, notice_date = $3, last_working_day = $4,
+                      version = version + 1, updated_at = $5
+                WHERE id = $1
+                RETURNING *)
+             SELECT ${EMPLOYEE_COLUMNS}, ${COUNTRY_COLUMNS}
+               FROM updated JOIN countries c ON c.code = updated.country_code`,
+            [id, exit.exitType, exit.noticeDate, exit.lastWorkingDay, now],
+          )
+        ).rows[0] as EmployeeDetail,
 
       /** Returns null when the id is unknown or `version` is stale (optimistic locking). */
       updateProfile: async (

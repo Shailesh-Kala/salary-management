@@ -1,13 +1,16 @@
 import type { Clock } from '../../lib/clock.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
-import { planChange } from './changes.ts';
+import { type CurrentState, planChange, snapshotOf } from './changes.ts';
 import type {
   ChangeEventInput,
   CreateEmployeeInput,
+  ExitInput,
   ListEmployeesQuery,
   UpdateProfileInput,
+  WithdrawExitInput,
 } from './employee.schemas.ts';
+import { type ExitFields, type LifecycleContext, planExit, planWithdraw } from './lifecycle.ts';
 import type { EmployeeRepos } from './employees.repository.ts';
 import { employeeStatus } from './status.ts';
 
@@ -39,8 +42,55 @@ const versionConflict = () =>
 const invalid = (path: string, message: string) =>
   new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
 
+type LifecyclePlan = {
+  exit: ExitFields;
+  changes: Record<string, { old: unknown; new: unknown }>;
+  effectiveDate: string;
+};
+
 export function createEmployeesService({ clock, repos, inTransaction }: EmployeesServiceDeps) {
+  const withStatus = <T extends { lastWorkingDay: string | null }>(e: T) => ({
+    ...e,
+    status: employeeStatus(e.lastWorkingDay, clock.today()),
+  });
+
+  /** Locks the employee, checks the version, applies the exit plan and records it in history. */
+  const applyLifecycle = (
+    id: string,
+    input: { version: number; note: string },
+    changeType: 'exit' | 'exit_withdrawn',
+    actor: AuthUser,
+    plan: (current: CurrentState, ctx: LifecycleContext) => LifecyclePlan,
+  ) =>
+    inTransaction(async ({ employees, changes }) => {
+      const current = await employees.findForUpdate(id);
+      if (!current) throw notFound();
+      if (current.version !== input.version) throw versionConflict();
+
+      const { latest } = await changes.dateBounds(id);
+      const result = plan(current, { today: clock.today(), latestEffectiveDate: latest });
+      const employee = await employees.setExit(id, result.exit, clock.now());
+      const change = await changes.insert({
+        employeeId: id,
+        changeType,
+        effectiveDate: result.effectiveDate,
+        note: input.note,
+        source: 'ui',
+        changes: result.changes,
+        snapshot: snapshotOf(current),
+        changedBy: actor.id,
+        changedAt: clock.now(),
+      });
+      return { employee: withStatus(employee), change };
+    });
+
   return {
+    recordExit: (id: string, input: ExitInput, actor: AuthUser) =>
+      applyLifecycle(id, input, 'exit', actor, (current, ctx) => planExit(current, input, ctx)),
+
+    withdrawExit: (id: string, input: WithdrawExitInput, actor: AuthUser) =>
+      applyLifecycle(id, input, 'exit_withdrawn', actor, planWithdraw),
+
     filterOptions: () => repos.employees.filterOptions(),
 
     async get(id: string) {

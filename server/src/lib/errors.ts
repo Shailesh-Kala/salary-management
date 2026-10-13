@@ -13,6 +13,10 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   | 'INTERNAL';
 
+/** A 400 VALIDATION_ERROR about one field ('' for the request as a whole). */
+export const invalidField = (path: string, message: string) =>
+  new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
+
 export class AppError extends Error {
   readonly code: ErrorCode;
   readonly status: number;

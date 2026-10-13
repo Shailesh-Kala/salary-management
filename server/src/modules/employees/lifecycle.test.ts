@@ -12,11 +12,22 @@ const active: CurrentState = {
   countryCode: 'IN',
   currencyCode: 'INR',
   hireDate: '2024-04-01',
+  exitType: null,
   noticeDate: null,
   lastWorkingDay: null,
 };
-const onNotice = { ...active, noticeDate: '2026-10-01', lastWorkingDay: '2026-11-30' };
-const exited = { ...active, noticeDate: '2026-08-01', lastWorkingDay: '2026-09-30' };
+const onNotice: CurrentState = {
+  ...active,
+  exitType: 'resigned',
+  noticeDate: '2026-10-01',
+  lastWorkingDay: '2026-11-30',
+};
+const exited: CurrentState = {
+  ...active,
+  exitType: 'resigned',
+  noticeDate: '2026-08-01',
+  lastWorkingDay: '2026-09-30',
+};
 const context = { today: TODAY, latestEffectiveDate: '2025-04-01' };
 
 const resignation = {

@@ -12,9 +12,20 @@ export type CurrentState = Pick<
   | 'department'
   | 'countryCode'
   | 'hireDate'
+  | 'exitType'
   | 'noticeDate'
   | 'lastWorkingDay'
 > & { currencyCode: string };
+
+/** Pay, place and role in effect, as recorded with every history entry. */
+export const snapshotOf = (state: CurrentState): Snapshot => ({
+  baseSalary: state.baseSalary,
+  allowances: state.allowances,
+  currencyCode: state.currencyCode,
+  countryCode: state.countryCode,
+  jobTitle: state.jobTitle,
+  department: state.department,
+});
 
 export type ChangeContext = {
   today: string;

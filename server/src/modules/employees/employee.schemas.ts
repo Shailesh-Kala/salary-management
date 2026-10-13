@@ -105,3 +105,17 @@ export const changeEventSchema = z.strictObject({
 });
 
 export type ChangeEventInput = z.infer<typeof changeEventSchema>;
+
+export const exitSchema = z.strictObject({
+  version: z.int().min(1),
+  exitType: z.enum(['resigned', 'terminated']),
+  noticeDate: isoDate,
+  lastWorkingDay: isoDate,
+  note,
+});
+
+export type ExitInput = z.infer<typeof exitSchema>;
+
+export const withdrawExitSchema = z.strictObject({ version: z.int().min(1), note });
+
+export type WithdrawExitInput = z.infer<typeof withdrawExitSchema>;
