@@ -792,3 +792,13 @@ If that's too much change right now, add one test that runs the same valid and i
 ```
 
 **Response:** Done the full change, not the fallback: the employee rules and message map now live in `server/src/shared` (zod only, checked by a test) and the create form validates with the same schema through a `@shared` alias, so the rules exist once. The database-backed checks stay on the server, the dialogs' note limits come from the same file, and D-057 records it (D-056 amended).
+
+---
+
+## 62. Phase 3 — Same zod version everywhere
+
+```text
+make sure server and web pin the exact same zod version, so there's only one copy and the shared schema uses the same zod as the web code.
+```
+
+**Response:** Both already pin zod 4.6.6 exactly and the shared schema, the server and the web code all resolve to the single installed copy, so nothing needed changing. I added a test that fails if the two versions differ or a second copy appears, and noted it in D-057.
