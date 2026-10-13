@@ -110,4 +110,4 @@ const EXAMPLE_ROWS = [
 
 /** The downloadable template: header plus example rows showing formats (rejected if left in). */
 export const templateCsv = () =>
-  `﻿${[TEMPLATE_HEADER, ...EXAMPLE_ROWS].map((row) => row.join(',')).join('\n')}\n`;
+  `\ufeff${[TEMPLATE_HEADER, ...EXAMPLE_ROWS].map((row) => row.join(',')).join('\n')}\n`;

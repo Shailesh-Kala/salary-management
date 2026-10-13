@@ -23,7 +23,7 @@ describe('checkUpload', () => {
   });
 
   it('tolerates a BOM, header case and spacing, and blank lines', () => {
-    const header = `﻿${TEMPLATE_HEADER.map((h) => ` ${h.toUpperCase()} `).join(',')}`;
+    const header = `\ufeff${TEMPLATE_HEADER.map((h) => ` ${h.toUpperCase()} `).join(',')}`;
 
     expect(checkUpload(file(csv(header, ROW, '', '')))).toEqual({ rowCount: 1 });
   });
