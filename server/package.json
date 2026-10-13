@@ -22,11 +22,14 @@
     "@types/pdfkit": "0.17.6",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
+    "csv-parse": "7.0.3",
     "supertest": "7.3.1"
   },
   "dependencies": {
     "cookie-parser": "1.4.7",
     "cors": "2.8.6",
+    "csv-stringify": "6.9.0",
+    "exceljs": "4.4.0",
     "express": "5.3.0",
     "express-rate-limit": "8.7.1",
     "helmet": "8.3.0",
