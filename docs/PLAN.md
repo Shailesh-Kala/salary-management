@@ -214,7 +214,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR exports in all three formats; large PDFs come in slice L.*
 
 ## Slice K: Job queue and import
-32. [ ] **Job queue and worker:** migration for `jobs`, enqueue, claim (`SKIP LOCKED`), `runOnce`, backoff, `max_attempts`, lease expiry, delayed `run_after`.
+32. [x] **Job queue and worker:** migration for `jobs`, enqueue, claim (`SKIP LOCKED`), `runOnce`, backoff, `max_attempts`, lease expiry, delayed `run_after`.
     - Integration tests (fixed clock):
       - a delayed job isn't claimed before `run_after`
       - a throwing handler is retried with backoff, then marked `failed` after 3 attempts

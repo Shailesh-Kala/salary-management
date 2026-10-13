@@ -644,3 +644,13 @@ next
 ```
 
 **Response:** Two TDD changes. (2) Tests then implementation: `formatMoney` and `pdfAmount` use en-IN for INR and en-US for every other currency; Excel amount cells use `0.00`; a test pins CSV amounts as plain numbers (D-049). (1) Tests then implementation: the generator returns each employee's hire state and a dated list of annual reviews, promotions and relocations within the last year; the seed writes them with diffs and snapshots; a test proves every employee row equals their latest snapshot (D-050). Re-seeded the app DB: 18,992 history entries (7,511 reviews, 479 promotions, 265 relocations) in 1.6–1.8 s. 376 tests pass.
+
+---
+
+## 48. Phase 3 — Task 32: Job queue and worker
+
+```text
+next
+```
+
+**Response:** TDD: failing integration tests on a fixed clock (job runs with its payload and completes; delayed job not run before `run_after`; failing job retried at +10 s, +20 s then failed after 3 attempts; job of a dead worker re-claimed after its 5-minute lease; abandoned last attempt failed without re-running; unknown type failed at once; concurrent claims never share a job; worker loop polls until stopped). Implemented migration `0005` (jobs), `createQueue` (SKIP LOCKED claim, lease, backoff, all times from the clock) and `createWorker` (`runOnce`, polling loop, stop waits for the current job), and graceful shutdown in `main.ts` — verified with a real SIGTERM (exit 0). 384 tests pass.
