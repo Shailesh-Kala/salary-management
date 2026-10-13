@@ -59,18 +59,18 @@ describe('validateEmployeeForm', () => {
     (amount) => {
       expect(validateEmployeeForm({ ...valid, baseSalary: amount })).toEqual({
         baseSalary:
-          'Enter a plain number like 1800000 or 1800000.50, with no commas or currency symbols',
+          'Enter a plain number like 95000 or 95000.50, with no commas or currency symbols',
       });
       expect(validateEmployeeForm({ ...valid, allowances: amount })).toEqual({
         allowances:
-          'Enter a plain number like 200000 or 200000.50, with no commas or currency symbols',
+          'Enter a plain number like 95000 or 95000.50, with no commas or currency symbols',
       });
     },
   );
 
   it('requires a base salary above zero', () => {
     expect(validateEmployeeForm({ ...valid, baseSalary: '0' })).toEqual({
-      baseSalary: 'Base salary must be greater than 0',
+      baseSalary: 'Must be greater than 0',
     });
   });
 });

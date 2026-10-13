@@ -98,7 +98,7 @@ describe('create employee page', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Enter a plain number like 1800000 or 1800000.50, with no commas or currency symbols',
+        'Enter a plain number like 95000 or 95000.50, with no commas or currency symbols',
       ),
     ).toBeInTheDocument();
     expect(posted).toEqual([]);

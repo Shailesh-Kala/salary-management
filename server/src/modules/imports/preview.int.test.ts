@@ -209,7 +209,9 @@ describe('rejected-rows CSV (T3)', () => {
     expect(lines).toHaveLength(9);
     const badAmount = lines.find((l) => l[0] === 'NEW-4')!;
     expect(badAmount.slice(0, 10)).toEqual(row('NEW-4', 14, { base_salary: 'abc' }).split(','));
-    expect(badAmount[10]).toBe('base_salary: Must be an amount like 95000 or 95000.50');
+    expect(badAmount[10]).toBe(
+      'base_salary: Enter a plain number like 95000 or 95000.50, with no commas or currency symbols',
+    );
   });
 
   it('can be fixed and uploaded again as it is', async () => {

@@ -45,7 +45,7 @@ describe('POST /api/employees', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.details).toContainEqual({
       path: 'baseSalary',
-      message: 'This field is required',
+      message: 'Enter the annual base salary',
     });
     expect(JSON.stringify(res.body)).not.toMatch(/received undefined|Invalid input/);
   });

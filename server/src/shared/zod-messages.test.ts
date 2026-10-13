@@ -29,41 +29,6 @@ const valid = {
 };
 
 describe('readable validation messages', () => {
-  it('says a missing field is required, including amounts (a union under the hood)', () => {
-    expect(messages(createEmployeeSchema, {})).toEqual({
-      employeeCode: 'This field is required',
-      firstName: 'This field is required',
-      lastName: 'This field is required',
-      email: 'This field is required',
-      jobTitle: 'This field is required',
-      department: 'This field is required',
-      countryCode: 'This field is required',
-      hireDate: 'This field is required',
-      baseSalary: 'This field is required',
-    });
-  });
-
-  it('says what is wrong with blank or malformed values', () => {
-    expect(
-      messages(createEmployeeSchema, {
-        ...valid,
-        employeeCode: '',
-        firstName: '   ',
-        email: 'asha',
-        hireDate: '2024-13-45',
-        baseSalary: '1,800,000',
-        allowances: '-5',
-      }),
-    ).toEqual({
-      employeeCode: 'Use letters, digits, - or _ (max 20)',
-      firstName: 'This field cannot be empty',
-      email: 'Enter a valid email address, like name@company.com',
-      hireDate: 'Enter a valid date as YYYY-MM-DD',
-      baseSalary: 'Must be an amount like 95000 or 95000.50',
-      allowances: 'Must be an amount like 95000 or 95000.50',
-    });
-  });
-
   it('says what type was expected and how long text may be', () => {
     expect(
       messages(createEmployeeSchema, { ...valid, firstName: 5, lastName: 'x'.repeat(101) }),

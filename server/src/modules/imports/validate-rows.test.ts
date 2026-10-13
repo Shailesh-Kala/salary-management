@@ -148,8 +148,8 @@ describe('validateRows: rejections', () => {
 
   it('names each invalid field by its column', () => {
     expect(rejected([withValue(withValue(newRow, 'email', 'nope'), 'base_salary', '-5')])).toEqual([
-      'email: Invalid email address',
-      'base_salary: Must be an amount like 95000 or 95000.50',
+      'email: Enter a valid email address, like name@company.com',
+      'base_salary: Enter a plain number like 95000 or 95000.50, with no commas or currency symbols',
     ]);
   });
 
