@@ -1,5 +1,5 @@
 import type { Clock } from '../../lib/clock.ts';
-import { AppError } from '../../lib/errors.ts';
+import { AppError, invalidField } from '../../lib/errors.ts';
 import type { AuthUser } from '../auth/auth.service.ts';
 import { type CurrentState, planChange, snapshotOf } from './changes.ts';
 import type {
@@ -38,9 +38,6 @@ const versionConflict = () =>
     409,
     'This employee was changed by someone else. Reload to see the latest details.',
   );
-
-const invalid = (path: string, message: string) =>
-  new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
 
 type LifecyclePlan = {
   exit: ExitFields;
@@ -96,13 +93,12 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
     async get(id: string) {
       const employee = await repos.employees.findById(id);
       if (!employee) throw notFound();
-      return { ...employee, status: employeeStatus(employee.lastWorkingDay, clock.today()) };
+      return withStatus(employee);
     },
 
     async updateProfile(id: string, { version, ...fields }: UpdateProfileInput) {
       const updated = await repos.employees.updateProfile(id, version, fields, clock.now());
-      if (updated)
-        return { ...updated, status: employeeStatus(updated.lastWorkingDay, clock.today()) };
+      if (updated) return withStatus(updated);
       if (await repos.employees.findById(id)) throw versionConflict();
       throw notFound();
     },
@@ -139,7 +135,7 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
           changedAt: clock.now(),
         });
         return {
-          employee: { ...employee, status: employeeStatus(employee.lastWorkingDay, clock.today()) },
+          employee: withStatus(employee),
           change,
         };
       });
@@ -152,7 +148,7 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
 
     async list(query: ListEmployeesQuery) {
       const rates = await repos.employees.ratesInfo(query.currency);
-      if (!rates.known) throw invalid('currency', 'Unknown currency');
+      if (!rates.known) throw invalidField('currency', 'Unknown currency');
       const { items, total } = await repos.employees.list(query, clock.today());
       const { page, pageSize, currency } = query;
       return { items, total, page, pageSize, currency, ratesAsOf: rates.asOf };
@@ -160,12 +156,12 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
 
     async create(input: CreateEmployeeInput, actor: AuthUser) {
       if (input.hireDate > clock.today()) {
-        throw invalid('hireDate', 'Hire date cannot be in the future');
+        throw invalidField('hireDate', 'Hire date cannot be in the future');
       }
 
       return inTransaction(async ({ employees, changes }) => {
         const country = await employees.findCountry(input.countryCode);
-        if (!country) throw invalid('countryCode', 'Unsupported country');
+        if (!country) throw invalidField('countryCode', 'Unsupported country');
 
         const { note = 'Employee record created', ...fields } = input;
         const employee = await employees.insert(fields);
@@ -190,12 +186,11 @@ export function createEmployeesService({ clock, repos, inTransaction }: Employee
           changedAt: clock.now(),
         });
 
-        return {
+        return withStatus({
           ...employee,
           currencyCode: country.currencyCode,
           countryName: country.name,
-          status: employeeStatus(employee.lastWorkingDay, clock.today()),
-        };
+        });
       });
     },
   };

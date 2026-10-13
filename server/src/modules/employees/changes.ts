@@ -1,4 +1,4 @@
-import { AppError } from '../../lib/errors.ts';
+import { invalidField } from '../../lib/errors.ts';
 import { sameAmount } from '../../lib/money.ts';
 import type { ChangeEventInput } from './employee.schemas.ts';
 import type { EmployeeRow, Snapshot } from './employees.repository.ts';
@@ -51,9 +51,6 @@ const AUDITED: AuditedField[] = [
 ];
 const AMOUNTS = new Set<AuditedField>(['baseSalary', 'allowances']);
 
-const invalid = (path: string, message: string) =>
-  new AppError('VALIDATION_ERROR', 400, 'Invalid request', [{ path, message }]);
-
 const earliest = (...dates: (string | null)[]) =>
   dates.filter((d): d is string => d !== null).sort()[0]!;
 
@@ -66,28 +63,28 @@ export function planChange(current: CurrentState, input: ChangeEventInput, ctx: 
   const isCorrection = input.changeType === 'correction';
 
   if (employeeStatus(current.lastWorkingDay, ctx.today) === 'exited' && !isCorrection) {
-    throw invalid('changeType', 'This employee has left: only corrections are allowed');
+    throw invalidField('changeType', 'This employee has left: only corrections are allowed');
   }
   if (input.countryCode !== undefined && !isRelocation) {
-    throw invalid('countryCode', 'Country can only change through a relocation');
+    throw invalidField('countryCode', 'Country can only change through a relocation');
   }
   if (input.hireDate !== undefined && !isCorrection) {
-    throw invalid('hireDate', 'Hire date can only change through a correction');
+    throw invalidField('hireDate', 'Hire date can only change through a correction');
   }
   if (isRelocation) {
-    if (!input.countryCode) throw invalid('countryCode', 'Choose the new country');
+    if (!input.countryCode) throw invalidField('countryCode', 'Choose the new country');
     if (input.countryCode === current.countryCode) {
-      throw invalid('countryCode', 'Choose a country other than the current one');
+      throw invalidField('countryCode', 'Choose a country other than the current one');
     }
-    if (!ctx.newCountryCurrency) throw invalid('countryCode', 'Unsupported country');
+    if (!ctx.newCountryCurrency) throw invalidField('countryCode', 'Unsupported country');
     if (input.baseSalary === undefined) {
-      throw invalid(
+      throw invalidField(
         'baseSalary',
         "Relocation needs the new base salary in the new country's currency",
       );
     }
     if (input.allowances === undefined) {
-      throw invalid(
+      throw invalidField(
         'allowances',
         "Relocation needs the new allowances in the new country's currency",
       );
@@ -96,14 +93,14 @@ export function planChange(current: CurrentState, input: ChangeEventInput, ctx: 
   if (input.hireDate !== undefined) {
     const latestAllowed = earliest(ctx.today, ctx.firstNonHireDate, current.noticeDate);
     if (input.hireDate > latestAllowed) {
-      throw invalid('hireDate', `Hire date must be on or before ${latestAllowed}`);
+      throw invalidField('hireDate', `Hire date must be on or before ${latestAllowed}`);
     }
   }
   if (input.effectiveDate > ctx.today) {
-    throw invalid('effectiveDate', 'Effective date cannot be in the future');
+    throw invalidField('effectiveDate', 'Effective date cannot be in the future');
   }
   if (ctx.latestEffectiveDate && input.effectiveDate < ctx.latestEffectiveDate) {
-    throw invalid(
+    throw invalidField(
       'effectiveDate',
       `Effective date must be on or after ${ctx.latestEffectiveDate} (the latest change)`,
     );
@@ -122,7 +119,7 @@ export function planChange(current: CurrentState, input: ChangeEventInput, ctx: 
     }
   }
   if (Object.keys(changes).length === 0) {
-    throw invalid('', 'Nothing changed: enter at least one new value');
+    throw invalidField('', 'Nothing changed: enter at least one new value');
   }
 
   const after = { ...current, ...updates };
