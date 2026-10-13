@@ -17,7 +17,7 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
 
   return (
     <>
-      <AppBar position="static">
+      <AppBar position="static" sx={{ displayPrint: 'none' }}>
         <Toolbar sx={{ gap: 2 }}>
           <Typography variant="h6" component="div">
             Salary Management

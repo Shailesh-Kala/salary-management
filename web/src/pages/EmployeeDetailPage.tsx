@@ -141,6 +141,9 @@ export function EmployeeDetailPage() {
         </Typography>
         <StatusChip status={e.status} />
         <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+          <Button variant="outlined" component={Link} to={`/employees/${e.id}/slip`}>
+            Salary slip
+          </Button>
           <Button variant="outlined" onClick={() => setDialog('profile')}>
             Edit profile
           </Button>

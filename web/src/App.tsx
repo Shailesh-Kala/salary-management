@@ -5,6 +5,7 @@ import { EmployeeFormPage } from './pages/EmployeeFormPage.tsx';
 import { EmployeesPage } from './pages/EmployeesPage.tsx';
 import { ExchangeRatesPage } from './pages/ExchangeRatesPage.tsx';
 import { InsightsPage } from './pages/InsightsPage.tsx';
+import { SlipPage } from './pages/SlipPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 
 export function AppRoutes() {
@@ -15,6 +16,7 @@ export function AppRoutes() {
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/employees/new" element={<EmployeeFormPage />} />
         <Route path="/employees/:id" element={<EmployeeDetailPage />} />
+        <Route path="/employees/:id/slip" element={<SlipPage />} />
         <Route path="/exchange-rates" element={<ExchangeRatesPage />} />
         <Route path="/insights" element={<InsightsPage />} />
       </Route>
