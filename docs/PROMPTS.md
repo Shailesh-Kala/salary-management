@@ -1,6 +1,6 @@
 # Prompt Log
 
-Each user prompt, the phase it belongs to, and a 1–2 line summary of the response.
+Each user prompt, the phase it belongs to, and a 1–2 line summary of the response, in the same words and order as the reply in the chat.
 
 ---
 
@@ -104,7 +104,7 @@ Start with Phase 0 now.
 ```
 </details>
 
-**Response:** Created public repo `salary-management`, added `.gitignore`, README skeleton, `CLAUDE.md` with the working rules, and skeleton docs (PROMPTS, REQUIREMENTS, ARCHITECTURE, PLAN, DECISIONS) — one commit per file, pushed.
+**Response:** Created the public repo `salary-management` and pushed 8 commits, one per file (.gitignore, README skeleton, CLAUDE.md with the working rules, prompt log, requirements/architecture/plan skeletons, decisions log); raised that Node 18 is end-of-life and suggested a real Postgres test database.
 
 ---
 
@@ -116,7 +116,7 @@ The reason for single repo is we will be sending the code for assessment review 
 2. Yes already have database which I will config on .env file by myself
 ```
 
-**Response:** Updated D-001 rationale (single repo for assessment review), installed Node 24.21.0 via nvm as default, pinned it in `.nvmrc`, logged D-002. Noted DB connection will be supplied by the user via `.env`.
+**Response:** Updated D-001's reason (one repo for the assessment review), installed Node 24.21.0 as the default and pinned it in `.nvmrc` (D-002), and noted you'll put the database connection in `.env` yourself.
 
 ---
 
@@ -126,7 +126,7 @@ The reason for single repo is we will be sending the code for assessment review 
 next
 ```
 
-**Response:** Wrote `docs/REQUIREMENTS.md` (goal, persona, 7 in-scope features incl. 6 concrete pay-insight questions, out-of-scope table with reasoning, data model fields, auth/privacy, NFR targets incl. high-load handling, assumptions, 7 open questions with defaults) and logged decisions D-003–D-008.
+**Response:** Wrote REQUIREMENTS.md: 7 features including 6 pay-insight questions, multi-currency via HR-maintained rates, salary history, gross slip, CSV import/export, an out-of-scope list and performance targets; logged D-003 to D-008 and asked 7 open questions with defaults.
 
 ---
 
@@ -148,7 +148,7 @@ Q6. We don't need to deploy or host it anywhere so drop this
 Q7. Yes, but there should be reason/note required
 ```
 
-**Response:** Revised REQUIREMENTS.md: added lifecycle (active / on_notice / exited, derived from dates) with resignation and last working day, required change type + note on every pay/title change, CSV/Excel/PDF export (PDF capped at 1,000 rows), gross-only slips, INR default, broader audit, new Q6/Q7 insights; dropped deployment from README/CLAUDE.md. Logged D-009–D-014 and marked superseded decisions; raised OQ8 (xlsx import) and OQ9 (PDF cap).
+**Response:** Added resignation and notice period with derived statuses, a required note on every pay/title change, CSV/Excel/PDF export, and applied your answers (gross-only slips, wider audit, INR default, update by code, no deployment); disagreed on PDFs over 1,000 rows and asked OQ8 and OQ9.
 
 ---
 
@@ -159,7 +159,7 @@ Q8. Let's only accept to CSV format and give user to an template on which there 
 Q9. Let's make it 1000 rows at a time and if user wants more then suggest that it will it will be sended over email and ask for the email on which user want the export value and these process will be in the background queue
 ```
 
-**Response:** Added CSV template with example rows, upload limits, background import job with accepted/rejected report and rejected-rows CSV, PDF > 1,000 rows via background job + email, and a PostgreSQL-backed job queue (F9). Logged D-015–D-017; raised OQ10 (email a login-protected expiring link instead of an attachment) and OQ11 (partial import vs all-or-nothing).
+**Response:** Made import CSV-only from a template with example rows, size and row limits, and a background job with an accepted/rejected report; large PDFs go by background job and email; disagreed on email attachments (OQ10) and checked partial vs all-or-nothing import (OQ11).
 
 ---
 
@@ -184,7 +184,7 @@ Log both as decisions, and add tests for: the preview counts, cancel saving noth
 rejected-rows CSV, and the download link rejecting other users and expired links.
 ```
 
-**Response:** Updated REQUIREMENTS.md: emailed exports go only to the requester's own address, link bound to the requester, 24 h expiry with file deletion via a scheduled cleanup job, downloads audited; import gains a preview → confirm/cancel step with per-row transactions and re-validation at apply. Added §11 required acceptance tests T1–T7 (to be written first in Phase 3) and logged D-018, D-019.
+**Response:** Emailed exports now go only to the requester's own address, with a login-protected link that expires in 24 h (file deleted, downloads audited); import gets a preview with "Import valid rows" or "Cancel"; listed T1 to T7 as required tests for Phase 3.
 
 ---
 
@@ -203,7 +203,7 @@ New:
 reason so it's about status never drifting from the dates instead.
 ```
 
-**Response:** Added idempotent retries (row outcome saved in the row's transaction, finished rows skipped; export email marked sent before sending, never re-sent) as D-020; one active import org-wide, enforced by DB constraint, `409` otherwise, as D-021; reworded all "project owner" reasons and D-014's reason. Added acceptance tests T8–T10.
+**Response:** Added safe retries (row result saved in the row's transaction, email never re-sent; T8, T9), one active import across all HR users (D-021, T10), removed "project owner wants" from every reason, and reworded D-014.
 
 ---
 
@@ -213,7 +213,7 @@ reason so it's about status never drifting from the dates instead.
 Next
 ```
 
-**Response:** Wrote `docs/ARCHITECTURE.md` (mermaid architecture/state/sequence/ER diagrams, stack, tables with constraints and indexes, full API list and error shape, folder structure, security/performance/reliability decisions with trade-offs, testing strategy, `.env` keys) and `docs/PLAN.md` (38 TDD tasks in 8 milestones, acceptance tests T1–T10 mapped to tasks). Logged D-022–D-030.
+**Response:** Wrote ARCHITECTURE.md (diagrams, data model, about 40 endpoints, folder structure, security/performance/reliability decisions) and PLAN.md with 38 test-first tasks; logged D-022 to D-030 and flagged the main choices to check.
 
 ---
 
@@ -240,7 +240,7 @@ Small things:
 - Turn on erasableSyntaxOnly in tsconfig since we're running TS directly on Node.
 ```
 
-**Response:** Email links now open the SPA page `/exports/:id`, which downloads via same-site `fetch` (T11); previews expire after 24 h via `import_expire` job + confirm-time check, and file/raw rows are nulled when an import ends (T12, T13); added `relocation` change type requiring new salary, with country/currency in snapshots and import support (T14); fixed CSRF note; added `exchange_rate_changes`; tsconfig flags listed in ARCHITECTURE and Task 1. Re-ordered PLAN.md into 13 usable slices (41 tasks). Logged D-031–D-035.
+**Response:** Email links now open the app page `/exports/:id` (T11), previews expire after 24 h with raw data cleared (T12, T13), relocation became an audited change type (T14), and the plan was reordered into 13 usable slices, plus the CSRF wording, rate history and tsconfig flags.
 
 ---
 
@@ -260,7 +260,7 @@ I went through REQUIREMENTS, DECISIONS, ARCHITECTURE and PLAN. I found a few thi
 - Please decide which timezone "today" uses, and make the pg driver return DATE columns as strings, to avoid off-by-one-day bugs.
 ```
 
-**Response:** Added an import row-rules table (new employee → `hire` on hire date; name/email → updated without history; hire date and exited-employee changes only via `correction`) and hire-date correction in the UI (D-036); per-row error isolation with an infrastructure-error classifier (D-037); revocable sessions via `token_version` + `disabled_at` checked per request and a user CLI (D-038); `APP_TIMEZONE=Asia/Kolkata` for "today", DATE as strings, tests under `TZ=America/Los_Angeles` (D-039). New acceptance tests T15–T18 placed in PLAN tasks 4, 6, 9, 34, 35.
+**Response:** Added an import row-rules table (hire on the hire date, name/email without history, hire date and exited employees only via correction), per-row error isolation, sessions that end immediately, and IST "today" with dates as text; added tests T15 to T18.
 
 ---
 
@@ -270,7 +270,7 @@ I went through REQUIREMENTS, DECISIONS, ARCHITECTURE and PLAN. I found a few thi
 next
 ```
 
-**Response:** Scaffolded the npm workspace (`server`), TypeScript 6.0 with `erasableSyntaxOnly`/`verbatimModuleSyntax`/`noEmit`, ESLint (typescript-eslint) + Prettier, Vitest, exact-pinned tools, `engines: node 24.21.0`, `.env.example`. Lint, typecheck, test and `node server/src/main.ts` all pass. Logged D-040 (TS 6.0 pin).
+**Response:** Task 1: npm workspace with TypeScript 6.0 (the linting plugin doesn't support 7 yet, D-040), ESLint, Prettier, Vitest and `.env.example`; lint, typecheck and test all run, and the web workspace waits for Task 8.
 
 ---
 
@@ -280,7 +280,7 @@ next
 Next
 ```
 
-**Response:** Added `.github/workflows/ci.yml` (Node from `.nvmrc`, npm cache, `postgres:16` service, `TEST_DATABASE_URL`, `npm ci` → lint → typecheck → test). GitHub did not start the job because the account is locked for billing; the same steps pass locally from a clean `npm ci`.
+**Response:** Task 2: added the GitHub Actions workflow with a Postgres 16 service; GitHub didn't start the job because of an account billing lock, though the same steps passed locally.
 
 ---
 
@@ -290,7 +290,7 @@ Next
 run CI workflow now
 ```
 
-**Response:** Re-ran the blocked CI run; it passed end to end (checkout, Node from `.nvmrc`, `npm ci`, lint, typecheck, test, `postgres:16` service). Updated the Task 2 note in PLAN.md.
+**Response:** Re-ran CI after the billing lock cleared; it passed end to end, and the later blocked run passed too.
 
 ---
 
@@ -300,7 +300,7 @@ run CI workflow now
 next
 ```
 
-**Response:** TDD: committed failing tests (health + request ID echo/generation/unsafe-ID replacement, 404 error shape, AppError mapping, generic 500 without message/stack, env validation), then `config.ts` (zod), `AppError`, central `errorHandler`, `createApp({ logger })` with pino-http request IDs, `GET /health`, and `main.ts` loading `.env` via Node's `--env-file-if-exists`. 10 tests pass.
+**Response:** Task 3: environment checks, request IDs, the standard error format and `/health`, with 10 tests; noted the request logs were too detailed until Task 7.
 
 ---
 
@@ -310,7 +310,7 @@ next
 what is TEST_DATABASE_URL why do we need?
 ```
 
-**Response:** Explained it is a separate database used only by integration tests (tests truncate tables, need exact known data, must run on real Postgres per D-027, mirrors CI). Promised a guard in Task 4 that refuses to run tests if it is missing or equals `DATABASE_URL`.
+**Response:** Explained TEST_DATABASE_URL: a separate database the tests empty and refill so your real data is never touched, with a safety check promised in Task 4.
 
 ---
 
@@ -320,7 +320,7 @@ what is TEST_DATABASE_URL why do we need?
 I am using mailtrap Sandbox test email cred can we add email username and password and port on the .env example
 ```
 
-**Response:** Added `SMTP_USER` / `SMTP_PASS` and Mailtrap Sandbox host/port (`sandbox.smtp.mailtrap.io:2525`) to `.env.example`, with Mailpit as a no-auth alternative; SMTP auth is optional. Updated ARCHITECTURE and REQUIREMENTS to match.
+**Response:** Added the Mailtrap Sandbox SMTP host, port, username and password to `.env.example` (Mailpit kept as a no-login option) and updated the docs.
 
 ---
 
@@ -330,7 +330,7 @@ I am using mailtrap Sandbox test email cred can we add email username and passwo
 Done, Next
 ```
 
-**Response:** Created the missing `salary_management` database (only the test DB existed). TDD: failing tests for DATE-as-string under `TZ=America/Los_Angeles` (T17 DB part), UTC session + 5 s statement timeout, reference data, `withTransaction` commit/rollback, `/health` db ok/503, and the test-DB guard; then `pg` pool, `withTransaction`, node-pg-migrate runner + `npm run migrate`, migration `0001` (users, rates, countries, rate history, `load_reference_data()`), Vitest global setup and `resetDb()`. 20 tests pass; migrated the app DB; live `/health` ok. Logged D-041; noted PostgreSQL 14+ (local 14.3, CI 16).
+**Response:** Task 4: created the missing app database, then the connection pool (UTC, dates as text), transactions, SQL migrations with countries and the rate snapshot, the test-database guard and the database health check; noted your local Postgres is 14.3.
 
 ---
 
@@ -340,7 +340,7 @@ Done, Next
 next
 ```
 
-**Response:** TDD: failing tests (round-trip, wrong password, self-describing salted format, six malformed stored hashes return false instead of throwing), then `password.ts` using built-in `crypto.scrypt` (N=2^15, r=8, p=1, 16-byte salt, 64-byte key, `timingSafeEqual`, maxmem raised to 64 MiB). ~96 ms per verify. 29 tests pass.
+**Response:** Task 5: scrypt password hashing (about 96 ms per check) with salted hashes that record their settings; a bad stored hash returns false instead of crashing.
 
 ---
 
@@ -353,7 +353,7 @@ Looks good, thanks. A few small things:
 - When a stored hash is malformed, log a warning (without the hash) so we notice bad data, while still returning false.
 ```
 
-**Response:** Confirmed only async callback `scrypt` is used (grep: no `scryptSync`). TDD: `verifyPassword` takes an optional logger and warns "stored password hash is malformed" (no hash) for malformed formats and for parameters scrypt refuses; no warning for a wrong password. Added a 20/min per-IP login limit to Task 7, REQUIREMENTS and ARCHITECTURE; logged D-042. 31 tests pass.
+**Response:** Confirmed hashing is async, added a warning log for bad stored hashes, and put a 20-per-minute per-IP login limit into Task 7 (D-042).
 
 ---
 
@@ -363,7 +363,7 @@ Looks good, thanks. A few small things:
 next
 ```
 
-**Response:** TDD: failing integration tests (cookie flags and 8 h Max-Age, identical generic 401 for wrong password/unknown email, 400 with field details, `/me`, every `/api` route protected, tampered token, expiry with injected clock, logout + replayed token, disable ends sessions and blocks login — T16) plus malformed-JSON 400, 413 body limit, zod → 400 mapping and new config keys; then `jose` HS256 tokens with `tv`, auth service (dummy hash for unknown emails, per-request user re-check), `requireAuth`, `express.json` + `cookie-parser`, `user:create`/`user:disable` CLI. 46 tests pass; CLI verified against the test DB. Logged D-043.
+**Response:** Task 6: login, logout and `/me` with an 8-hour HttpOnly cookie, sessions that end immediately on logout or disable (T16), and user create/disable commands; asked whether you wanted a reset-password command.
 
 ---
 
@@ -377,7 +377,7 @@ Before "next":
 - Make the log parameter of verifyPassword required now that login passes it.
 ```
 
-**Response:** Confirmed `secure: config.COOKIE_SECURE` (default true; user's `.env` is false) and added a test that `false` omits `Secure`. Confirmed disabled users already go through the same single hash check; added a unit test proving unknown / wrong / disabled each call `verifyPassword` once and throw the identical error (found and fixed a test bug: a `beforeEach` that returned the mock was run by Vitest as a cleanup hook). TDD: `resetPassword` (new password, `token_version` bump, same user ID) and `enableUser`, plus `user:reset-password` / `user:enable` CLI; refactor made `log` required. 54 tests pass. Logged D-044.
+**Response:** Added `user:reset-password` and `user:enable` (D-044), confirmed COOKIE_SECURE controls the Secure flag (with a test), proved a disabled user's login looks like a wrong password, and made the log parameter required.
 
 ---
 
@@ -387,7 +387,7 @@ Before "next":
 next
 ```
 
-**Response:** TDD: failing tests for the 6th same-email login (429), the 21st login from one IP with different emails (429), 300 API requests/user then 429 + `Retry-After`, helmet headers, CORS allow/deny, and a log-capture test (no cookie, query, salary, email or password); then `express-rate-limit` (20/min per IP + 5/min per IP+email on login, 300/min per user on `/api`, errors in the standard shape), `helmet` (HSTS only when `COOKIE_SECURE`), `cors` restricted to `CORS_ORIGIN`, and pino-http serializers logging only id/method/path/status. 61 tests pass. Stopped three leftover smoke-test servers from earlier tasks.
+**Response:** Task 7: both login limits, a 300-per-minute API limit, security headers, CORS and slimmed request logs; stopped three leftover test servers from earlier tasks.
 
 ---
 
@@ -397,7 +397,7 @@ next
 next
 ```
 
-**Response:** Added the `web` workspace (Vite 8, React 19, MUI 9, React Router 8, TanStack Query, Vitest + jsdom + Testing Library, react-hooks lint rules). TDD: failing RTL tests (login → `/employees`, `?next=` return, three open-redirect attempts ignored, generic 401 alert, protected-route redirect with `next`, valid session, sign out); then the API client (credentials, error shape, network error), `useMe`/`useLogin`, `safeNext`, `RequireAuth`, app bar with sign out (clears all cached data), login page. Fixed an immediate `/me` refetch after login (5-min `staleTime`) and made a failed background refetch not blank the page. Smoke-tested login through the Vite proxy against the test DB; production build compiles. README Setup/Run/Test filled in. 70 tests pass.
+**Response:** Task 8: the web app with login, the `?next=` return (safe from open redirects), sign-out that clears cached data, and protected routes. Slice B done.
 
 ---
 
@@ -407,7 +407,7 @@ next
 next
 ```
 
-**Response:** TDD: failing unit tests (12 accepted/rejected amount formats, half-up monthly split incl. the half-cent case, T17 `today()` in Asia/Kolkata incl. the 18:30 UTC midnight switch while the process runs in Los Angeles, status boundary on the last working day, invalid `APP_TIMEZONE`); then `positiveAmount`/`nonNegativeAmount` zod schemas (plain decimal strings fitting NUMERIC(14,2)), integer-cent `annualToMonthly`, `createClock(timeZone)` with `today()` via `Intl.DateTimeFormat('en-CA')`, `employeeStatus`, and `APP_TIMEZONE` config. 104 tests pass.
+**Response:** Task 9: amount validation, annual-to-monthly rounding to the cent, "today" in IST (T17) and the derived employee status.
 
 ---
 
@@ -417,7 +417,7 @@ next
 next
 ```
 
-**Response:** TDD: failing tests for the create schema (normalisation, every missing field, 9 invalid values, unknown fields), the service with fake repositories (derived currency/status, `hire` change effective on hire date with full snapshot, default/HR note, unsupported country and future hire date write nothing), the endpoint (201, duplicate code/email → 409, 400 paths, unsupported country, 401), atomicity (failing hire-change insert leaves no employee) and the append-only trigger; then migration `0002` (employees with checks + indexes incl. trigram search, `employee_changes` + `reject_modification()` trigger), repositories, service, route and PG unique-violation → `DUPLICATE` mapping. Fixed malformed amounts reporting two errors (refine → pipe). 133 tests pass; migrated the app DB.
+**Response:** Task 10: create-employee API with the employees and append-only history tables, a hire entry with a full snapshot, and 409 for duplicates; asked about future hire dates.
 
 ---
 
@@ -427,7 +427,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests on a 5-employee, 4-currency fixture (default page sorted by name with INR and rates date, pagination incl. past the end, sort by converted salary asc/desc, USD conversion with exact expected values, 7 filter combinations, SQL status = `employeeStatus()`, search by name/full name/code/email and a literal `%`, 5 validation errors); then `listEmployeesQuery`, a repository query with whitelisted ORDER BY, parameters added only when used, trigram-index search expression, LIKE escaping, conversion `round((base+allowances) × rate_from ÷ rate_to, 2)`, separate count, and `ratesInfo` (oldest rate date + unknown-currency check). 155 tests pass.
+**Response:** Task 11: employee list API with paging, sorting (including by converted salary), filters, search and currency conversion.
 
 ---
 
@@ -437,7 +437,7 @@ next
 next
 ```
 
-**Response:** TDD: failing tests for `mulberry32` (same seed → same sequence), the generator (deterministic first/last rows + checksum, seed changes output, sequential codes, unique emails, every row accepted unchanged by the create schema, date order, status mix, all countries/departments) and `seedDatabase` (counts of employees/hire/exit changes, snapshot currency matches country, refuses without reset, keeps an existing admin); then PRNG, generator, batched `unnest` seeding in one transaction and `npm run seed [-- --reset]`. Seeded the app DB: 10,000 employees + 10,675 history entries in 1.72 s (empty) / ~1.3 s (reset). Checked search: trigram index 5 ms vs planner's 19 ms seq scan at 10k (both fine). Refactored seed snapshot to named fields. Logged D-045. 168 tests pass.
+**Response:** Task 12: deterministic seed of 10,000 employees in about 1.3–1.7 s with a `--reset` guard (D-045); your app database is now seeded.
 
 ---
 
@@ -447,7 +447,7 @@ next
 next
 ```
 
-**Response:** TDD: failing tests for `GET /api/employees/filter-options` and 8 RTL tests (default query, country/department/title/status filters from page 1 with URL state, debounced search sending one request, header sort asc/desc on converted salary, next page, currency switch with header label, 401 → login with `next`). Then the filter-options query, a shared QueryClient (401 → login, no 4xx retries), `formatMoney` (en-IN grouping), and the list page with MUI X DataGrid in server mode. Smoke-tested on the seeded 10k DB: list queries 13–59 ms. Logged D-046. 177 tests pass. Slice C done.
+**Response:** Task 13: employees list page with a server-side grid, filters, search, currency switch and expired-session redirect; queries take 10–59 ms on 10k rows. Slice C done.
 
 ---
 
@@ -457,7 +457,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests (detail with version/status/currency/country name, 404 for unknown and malformed ids, PATCH name/email bumps version and writes no history, stale version → 409 keeping newer data, unknown → 404, six audited fields refused with 400, duplicate email → 409, empty update and missing version → 400); then `updateProfileSchema` (strict: name/email only), `findById`, `updateProfile` (`UPDATE … WHERE id AND version` in a CTE joined to countries), service conflict-vs-not-found branching, and routes. 192 tests pass.
+**Response:** Task 14: get-employee and edit-profile (name and email) with optimistic locking; a stale version gets 409.
 
 ---
 
@@ -467,7 +467,7 @@ next
 next
 ```
 
-**Response:** TDD: failing RTL tests (create posts trimmed-blank-free body and opens the new employee; server 400 and 409 shown on their fields; detail shows profile and pay in local currency; profile edit sends the loaded version; version conflict explains and reloads; 404 message; list row opens detail; "Add employee" link), with `mockApi` handlers now receiving the request body. Then the create page, detail page with edit-profile dialog, shared `StatusChip`, `useFilterOptions`, `fieldErrors`, routes and row navigation. Found and fixed flaky web tests (timeouts under parallel jsdom load): `userEvent` without per-key delay, 3 s async waits, 15 s test timeout — 12/12 clean runs. 201 tests pass. Slice D done.
+**Response:** Task 15: employee detail page, create form and profile-edit dialog with a version-conflict prompt; found and fixed flaky web tests. Slice D done.
 
 ---
 
@@ -477,7 +477,7 @@ next
 next
 ```
 
-**Response:** TDD: failing unit tests for a pure `planChange()` (only changed fields recorded, equal amounts in different formats unchanged, no-op rejected, promotion as one event and snapshot, effective date not future and not before the latest change, relocation rules and new-currency snapshot, hire-date correction bounds, exited employees correction-only) and the change schema; integration tests for apply + record, stale version 409, relocation keeping the old currency in history (T14 API), 400 field errors, 404s, atomic rollback, and history newest-first with author and snapshot. Then `planChange`, `changeEventSchema`, row lock (`FOR UPDATE`), whitelisted dynamic SET, date bounds, history query, and routes. 232 tests pass.
+**Response:** Task 16: audited change events (raises, promotions, relocations, hire-date corrections) and the history API, with the rules in a pure, unit-tested function.
 
 ---
 
@@ -487,7 +487,7 @@ next
 next
 ```
 
-**Response:** TDD: failing RTL tests (history newest first with type, date, note, old → new lines in the right currency, and author; Save disabled until the note has 5+ chars; promotion posts the loaded version without `countryCode`/`hireDate` and refreshes history; relocation clears pay, asks for a new country, relabels amounts in its currency and stays disabled until both amounts are entered; server field error shown in the dialog). Then `HistoryList`, `ChangeDialog` (pre-filled current values, relocation/correction-only fields, exited → correction only) and the detail page's History section. Refactored the shared version-conflict alert. 237 tests pass. Slice E done.
+**Response:** Task 17: record-change dialog (with relocation and correction fields) and the history timeline on the employee page. Slice E done.
 
 ---
 
@@ -497,7 +497,7 @@ next
 next
 ```
 
-**Response:** TDD: failing unit tests for pure `planExit` (hire ≤ notice ≤ last working day, notice not future and not before the latest change, immediate and back-dated exits allowed, no second exit) and `planWithdraw` (only while on notice), plus schema tests; integration tests for resignation (on notice, `exit` history entry, list `status` filter), back-dated termination (exited), stale version 409, 400 field error, withdrawal (active again, fields cleared, `exit_withdrawn` effective today) and nothing-to-withdraw. Implemented `POST /employees/:id/exit` and `/exit/withdraw` sharing one locked-transaction helper; fixed my test fixtures that lacked `exitType`. Refactored shared `invalidField`/`withStatus` helpers. 258 tests pass.
+**Response:** Task 18: exit and withdraw API with date-order rules, history entries and the status filter.
 
 ---
 
@@ -509,7 +509,7 @@ next
 Continue
 ```
 
-**Response:** TDD: failing RTL tests (on-notice employee shows exit type, dates and "60 days" notice period with only "Withdraw exit"; exited shows no exit actions; record-exit dialog shows "Last working day must be on or after the notice date" and disables Save, then "Notice period: 60 days", posts the exact body and shows "On notice"; withdraw needs a note, posts `{version, note}` and shows "Active"). Then `daysBetween` (UTC), `ExitDialog`, `WithdrawExitDialog`, status-dependent buttons and exit details on the detail page. Refactored all dialogs onto a shared `useEmployeeEvent` hook and `saveErrors` helper. 262 tests pass. Slice F done.
+**Response:** Task 19: exit and withdraw dialogs with the notice period shown in days, and buttons that depend on status. Slice F done.
 
 ---
 
@@ -519,7 +519,7 @@ Continue
 next
 ```
 
-**Response:** TDD: failing unit tests for pure `planRateChange` (old → new values, INR fixed at 1, no future rate date, unchanged rejected) and the rate schema (> 0, ≤ 6 decimals); integration tests for `GET /api/countries`, `GET /api/exchange-rates`, `PUT /api/exchange-rates/:currency` (rate + date + who, history row in the same transaction), immediate effect on conversions (EUR → USD = 68,800.00 with USD at 90), history filtered by currency newest first, INR/zero/future rejections writing no history, 404 for unknown currency, and the append-only trigger. Implemented the `rates` module and migration `0003`; migrated the app DB. 282 tests pass.
+**Response:** Task 20: countries and exchange-rate API with an append-only, audited rate history; new rates apply to conversions immediately.
 
 ---
 
@@ -529,7 +529,7 @@ next
 next
 ```
 
-**Response:** TDD: failing RTL tests (rates listed with dates and "Initial snapshot", INR shown as fixed base currency with no edit, empty-history message; editing USD posts `{inrPerUnit, asOf}` and the table and rate history refresh with "88.75 → 90" and "2026-10-01 → 2026-10-12"; server field error shown in the dialog; app-bar navigation). Then `/exchange-rates` page, edit dialog (refreshes rates, history and the employee list), `formatRate`, and Employees / Exchange rates links in the app bar. 286 tests pass. Slice G done. A post-commit flake check failed 1/5: measured that uncapped parallel jsdom workers stretch the slowest test to 5.5 s (1.6 s serial) with no speed gain over 2 workers, so capped web `maxWorkers` at 2 (15/15 clean runs).
+**Response:** Task 21: exchange-rates page with edit and history, plus app navigation; capped web test workers at 2 to fix a flaky run. Slice G done.
 
 ---
 
@@ -539,7 +539,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests on a 6-employee fixture (on-notice counted, exited excluded) with hand-computed values: summary totals/average/median in INR and USD (rounded once at the end), four filter combinations incl. an empty result, unknown currency 400; per-country min/median/average/max/total in local and reporting currency; departments ranked by payroll, with country filter. Implemented the `insights` module: one `current_pay` CTE, SQL aggregates with `percentile_cont`, amounts as text; `ratesInfo` moved to the rates repository and shared (refactor). Measured 10–94 ms on the seeded 10k DB. 293 tests pass.
+**Response:** Task 22: insights Q1–Q3 (headcount and payroll, pay by country, pay by department) computed in SQL, 10–94 ms on 10k rows.
 
 ---
 
@@ -549,7 +549,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests on a 10-employee fixture (on-notice in, exited out): Q4 min/median/max per title in IN and US in their own currency, 400 without or with an unsupported country; Q5 default 80/120 % flags (ratio, position, peer median and count), custom thresholds with ties ordered by employee code, pagination, department filter not changing peer medians, invalid thresholds 400. Implemented `/insights/by-job-title` and `/insights/outliers` (peer CTE with `percentile_cont`, exact-ratio extremeness ordering). Measured 16–92 ms on the seeded 10k DB. 307 tests pass.
+**Response:** Task 23: insights Q4 (pay range by job title in a country) and Q5 (people outside 80–120% of their peers' median), 16–92 ms; asked about a minimum peer-group size.
 
 ---
 
@@ -559,7 +559,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests — Q6: last-90-days default range, newest first, promotion with old → new title and +20.00 %, relocation IN → US with no % across currencies, hires excluded, wider range + change-type filter (+5.00 %), 400 for a reversed range and for `hire`; Q7: leavers (on notice only) totalled by department and country, listed by last working day, converted to USD (120,281.69), department filter. Implemented `/insights/recent-changes` (`lag()` window over history) and `/insights/leavers` (insights base query gained a `leaving` scope); moved `addDays` to `lib/dates.ts`. Measured 11–175 ms on the seeded DB. 313 tests pass.
+**Response:** Task 24: insights Q6 (recent pay and title changes) and Q7 (who is leaving); offered to seed raises and promotions because Q6 was empty.
 
 ---
 
@@ -571,7 +571,7 @@ next
 continue with the task
 ```
 
-**Response:** TDD: failing RTL tests (every question answered in INR with the rates date and no job-title query without a country; switching currency re-queries Q1–Q3 and Q7 and updates the URL; choosing a country filters all seven and loads job-title ranges). Built `/insights` with one labelled region per question, URL-held filters, links from people to their employee page, and an Insights nav link; moved the dropdown into a shared `SelectFilter`. Corrected my mistyped en-IN expectation (₹63,80,37,16,300.00). After the interrupted (rejected) combined command, re-ran the checks in smaller steps and committed. Seed left unchanged (seeded-raises question still open). 316 tests pass. Slice H done.
+**Response:** Task 25: Insights page answering all seven questions with filters kept in the URL; redid the checks in smaller steps after the interrupted command. Slice H done.
 
 ---
 
@@ -581,7 +581,7 @@ continue with the task
 next
 ```
 
-**Response:** TDD: failing unit tests for pure `buildSlip` (annual ÷ 12 half-up per line, gross = sum of rounded lines, month lengths incl. leap years, hire-month and last-working-day-month allowed but not beyond, current month allowed but not future) and integration tests (past-month slip uses the snapshot at month end after a promotion; months before a relocation keep India/INR (T14 slip part); earliest-snapshot fallback after a hire-date correction; 400 for future, pre-hire and malformed months; 404). Implemented the `slips` module: `GET /api/employees/:id/slips/:month`, `addAmounts`, `lastDayOfMonth`. 326 tests pass.
+**Response:** Task 26: monthly slip API using the salary in effect at month end, gross pay only, with employment-month rules (T14 slip part).
 
 ---
 
@@ -591,7 +591,7 @@ next
 next
 ```
 
-**Response:** TDD: failing tests for `?format=pdf` (application/pdf, `%PDF-` header, `attachment; filename="slip-EMP-00001-2026-09.pdf"`, title metadata), a JSON 400 for months outside employment even when a PDF is asked for, and 400 for an unknown format. Implemented `renderSlipPdf` with `pdfkit` (A4: period, employee, earnings table, bold gross, gross-only notice) and the route; set a quoted `Content-Disposition` explicitly (Express 5 omits the quotes). Rendered a real seeded employee's slip and checked it visually. Logged D-047 (currency codes instead of ₹ in built-in fonts). 332 tests pass.
+**Response:** Task 27: slip as a PDF download, checked visually; amounts show currency codes because the built-in font has no ₹ (D-047).
 
 ---
 
@@ -601,7 +601,7 @@ next
 next
 ```
 
-**Response:** TDD: failing RTL tests (slip with period, employee, earnings and gross in the slip's currency, gross-only notice, Print button and PDF link; switching month loads that month in its own currency and updates the URL; a 400 explains why no slip exists and hides the download; the employee page links to the slip). Built `/employees/:id/slip?month=` with a native month picker, print-friendly layout (app bar and controls hidden when printing) and a same-origin PDF link; added "Salary slip" on the employee page. 336 tests pass. Slice I done.
+**Response:** Task 28: slip page with month picker, print view and PDF download. Slice I done.
 
 ---
 
@@ -611,7 +611,7 @@ next
 next
 ```
 
-**Response:** TDD: failing tests for `spreadsheetSafe` (= + - @ tab CR prefixed) and for `GET /api/exports/employees` (CSV: UTF-8 with BOM, exact header + `annual_salary_<currency>`, rows, formula escaping, filters and currency; Excel: one sheet, frozen header, numbers and dates as typed cells; an `exports` audit row with filters and row count; 400 for unknown format). Cleared an npm audit advisory with a `uuid` override for exceljs (D-048). Implemented migration `0004` (exports), column mapping, a service that audits then yields 1,000-row batches, CSV/Excel streaming, and an error-handler guard for failures after the response has started. Measured 10k rows: CSV 0.41 s, Excel 0.66 s. 350 tests pass.
+**Response:** Task 29: CSV and Excel export streamed in 0.4–0.7 s for 10k rows, with formula escaping and an audit row; overrode exceljs's `uuid` to clear an advisory (D-048).
 
 ---
 
@@ -621,7 +621,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests on 1,001 seeded employees (≤ 1,000 rows → multi-page PDF named `employees-<date>.pdf`, audited; the full list → 422 `EXPORT_TOO_LARGE` with row count and limit, nothing audited; CSV still fine). Implemented a landscape A4 list PDF (filters line, rates date, header repeated per page, "Page x of y"), the 1,000-row check before rendering, and shared `lib/pdf.ts` helpers now also used by the slip PDF. Checked real output visually (Singapore Finance, 2 pages) and a 422 on the full 10k list. Raised: en-IN digit grouping is applied to non-INR currencies too. 357 tests pass.
+**Response:** Task 30: direct PDF export of up to 1,000 rows (422 above that); asked about digit grouping for non-INR currencies.
 
 ---
 
@@ -631,7 +631,7 @@ next
 next
 ```
 
-**Response:** TDD: failing RTL tests (each of CSV, Excel and PDF requests `/api/exports/employees` with the list's filters, search, sort and currency but no paging, and saves the server's filename; a 422 explains the PDF limit and suggests CSV/Excel, saving nothing). Built an Export menu on the list page that downloads via `fetch` + blob (so errors stay readable), a shared `download()` in the API client, and widened `ApiError.details` to carry non-field data. Digit-grouping question unanswered, so formatting unchanged. 361 tests pass. Slice J done.
+**Response:** Task 31: export menu on the employee list for CSV, Excel and PDF, explaining an oversized PDF. Slice J done.
 
 ---
 
@@ -643,7 +643,7 @@ next
 2. Yes, Indian grouping for INR and international grouping (1,234,567.89) for every other currency, including EUR. Please keep this for display only (UI and PDF). CSV and Excel must keep plain numbers with no grouping, so Excel can calculate with them and the CSV can be re-imported.
 ```
 
-**Response:** Two TDD changes. (2) Tests then implementation: `formatMoney` and `pdfAmount` use en-IN for INR and en-US for every other currency; Excel amount cells use `0.00`; a test pins CSV amounts as plain numbers (D-049). (1) Tests then implementation: the generator returns each employee's hire state and a dated list of annual reviews, promotions and relocations within the last year; the seed writes them with diffs and snapshots; a test proves every employee row equals their latest snapshot (D-050). Re-seeded the app DB: 18,992 history entries (7,511 reviews, 479 promotions, 265 relocations) in 1.6–1.8 s. 376 tests pass.
+**Response:** Added seeded annual reviews, promotions and relocations from the last year (D-050), and Indian grouping for INR only with international grouping elsewhere, display only (D-049); re-seeded the app database.
 
 ---
 
@@ -653,7 +653,7 @@ next
 next
 ```
 
-**Response:** TDD: failing integration tests on a fixed clock (job runs with its payload and completes; delayed job not run before `run_after`; failing job retried at +10 s, +20 s then failed after 3 attempts; job of a dead worker re-claimed after its 5-minute lease; abandoned last attempt failed without re-running; unknown type failed at once; concurrent claims never share a job; worker loop polls until stopped). Implemented migration `0005` (jobs), `createQueue` (SKIP LOCKED claim, lease, backoff, all times from the clock) and `createWorker` (`runOnce`, polling loop, stop waits for the current job), and graceful shutdown in `main.ts` — verified with a real SIGTERM (exit 0). 384 tests pass.
+**Response:** Task 32: PostgreSQL job queue and worker with leases, retries with backoff and graceful shutdown (checked with a real SIGTERM).
 
 ---
 
@@ -663,4 +663,14 @@ next
 next
 ```
 
-**Response:** TDD: failing unit tests for `checkUpload` (row count; BOM/header case/blank lines tolerated; missing file, non-CSV, header only, missing/unknown columns, broken CSV, > 20,000 rows, > 5 MB → 413) and the import form (relocation not allowed as an import-wide type); integration tests for the template (header + 3 `EXAMPLE-*` rows), a valid upload (202, stored, `import_validate` queued), rejections that store and queue nothing, a 413, and T10 (409 with the active import's id while validating/awaiting confirmation/applying; accepted after it ends). Implemented migration `0006` (imports, import_rows, partial unique index `one_active_import`), the upload service (store + enqueue in one transaction, unique-index violation → 409), multer routes and multer error mapping. 408 tests pass. A lint failure (literal BOM characters where `\ufeff` escapes were intended) slipped into one commit because the checks were chained with `;` — CI caught it; fixed in the next commit, and checks are now chained with `&&` so a failure stops the commit.
+**Response:** Task 33: import template, upload checks and the one-active-import rule (T10); a lint slip reached one commit because checks were chained with `;`, CI caught it and it's fixed.
+
+---
+
+## 50. Phase 3 — Prompt log review
+
+```text
+that's create I just check the Prompt and resonse and I found the response is not matching what I can see in the chat and in the document
+```
+
+**Response:** Rewrote every Response in this log as a 1–2 line summary matching my chat reply (your choice: "1–2 line chat summary"), and will keep that format from now on.

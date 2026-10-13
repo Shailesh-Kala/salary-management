@@ -48,6 +48,6 @@ Rules for anyone (human or AI) contributing to this repo. They override defaults
 - GitHub Actions CI runs lint + tests on every push.
 
 ## Documentation (keep updated as we go)
-- `docs/PROMPTS.md`: after each user message, append the prompt, the phase, and a 1–2 line summary of the response. Commit it with the related work.
+- `docs/PROMPTS.md`: after each user message, append the prompt, the phase, and a 1–2 line summary of the response, in the same words and order as the reply in the chat (not a separate technical log). Commit it with the related work.
 - `docs/DECISIONS.md`: log every meaningful decision — what, alternatives, why, trade-off.
 - `README.md`: setup, run, seed, test, demo video link, links to all docs. (No deployment — see D-013.)
