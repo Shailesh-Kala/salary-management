@@ -7,6 +7,7 @@ import type { Pool } from 'pg';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { Config } from './config.ts';
+import './lib/zod-messages.ts';
 import type { Clock } from './lib/clock.ts';
 import { AppError } from './lib/errors.ts';
 import { requireAuth } from './middleware/auth.ts';

@@ -50,12 +50,7 @@ export const listEmployeesQuery = z.object({
   sort: z.enum(SORT_FIELDS).default('name'),
   order: z.enum(['asc', 'desc']).default('asc'),
   q: z.string().trim().max(100).optional(),
-  country: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{2}$/)
-    .optional(),
+  country: countryCode.optional(),
   department: text.optional(),
   jobTitle: text.optional(),
   status: z.enum(['active', 'on_notice', 'exited']).optional(),
@@ -63,7 +58,7 @@ export const listEmployeesQuery = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z]{3}$/)
+    .regex(/^[A-Z]{3}$/, 'Use a three-letter currency code, like USD')
     .default('INR'),
 });
 

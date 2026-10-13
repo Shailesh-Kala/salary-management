@@ -57,14 +57,13 @@ describe('validateEmployeeForm', () => {
   it.each(['1,800,000', '₹1800000', '18e5', '-5', '1.234', 'abc'])(
     'rejects the amount %s with the expected format',
     (amount) => {
-      const message =
-        'Enter a plain number like 1800000 or 1800000.50, with no commas or currency symbols';
-
       expect(validateEmployeeForm({ ...valid, baseSalary: amount })).toEqual({
-        baseSalary: message,
+        baseSalary:
+          'Enter a plain number like 1800000 or 1800000.50, with no commas or currency symbols',
       });
       expect(validateEmployeeForm({ ...valid, allowances: amount })).toEqual({
-        allowances: message.replace('1800000', '200000').replace('1800000.50', '200000.50'),
+        allowances:
+          'Enter a plain number like 200000 or 200000.50, with no commas or currency symbols',
       });
     },
   );

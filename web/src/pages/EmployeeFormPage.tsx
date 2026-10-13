@@ -14,6 +14,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../api/client.ts';
 import { type EmployeeDetail, fieldErrors, useFilterOptions } from '../api/employees.ts';
+import { type FormErrors, validateEmployeeForm } from '../lib/validation.ts';
 
 const EMPTY = {
   employeeCode: '',
@@ -30,8 +31,11 @@ const EMPTY = {
 
 type Form = typeof EMPTY;
 
+const hasErrors = (errors: object) => Object.keys(errors).length > 0;
+
 export function EmployeeFormPage() {
   const [form, setForm] = useState(EMPTY);
+  const [checked, setChecked] = useState<FormErrors<Form>>({});
   const options = useFilterOptions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -51,13 +55,17 @@ export function EmployeeFormPage() {
     },
   });
 
-  const errors = fieldErrors(create.error);
+  const serverErrors = fieldErrors(create.error);
+  const errors: Record<string, string | undefined> = { ...serverErrors, ...checked };
   const currency = options.data?.countries.find((c) => c.code === form.countryCode)?.currencyCode;
   const field = (name: keyof Form, label: string, props: TextFieldProps = {}) => (
     <TextField
       label={label}
       value={form[name]}
-      onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+      onChange={(e) => {
+        setForm({ ...form, [name]: e.target.value });
+        setChecked(({ [name]: _fixed, ...rest }) => rest);
+      }}
       error={Boolean(errors[name])}
       helperText={errors[name]}
       required
@@ -67,12 +75,12 @@ export function EmployeeFormPage() {
   );
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    create.mutate(form);
+    const problems = validateEmployeeForm(form);
+    setChecked(problems);
+    if (!hasErrors(problems)) create.mutate(form);
   };
   const generalError =
-    create.error instanceof ApiError && Object.keys(errors).length === 0
-      ? create.error.message
-      : null;
+    create.error instanceof ApiError && !hasErrors(serverErrors) ? create.error.message : null;
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 720 }}>

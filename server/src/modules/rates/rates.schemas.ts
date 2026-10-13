@@ -19,7 +19,7 @@ export const currencyCode = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^[A-Z]{3}$/);
+  .regex(/^[A-Z]{3}$/, 'Use a three-letter currency code, like USD');
 
 export const rateHistoryQuery = z.object({
   currency: currencyCode.optional(),
