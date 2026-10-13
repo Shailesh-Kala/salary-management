@@ -19,6 +19,9 @@ import { createUsersRepository } from './modules/auth/users.repository.ts';
 import { employeeRepositories } from './modules/employees/employees.repository.ts';
 import { employeeRoutes } from './modules/employees/employees.routes.ts';
 import { createEmployeesService } from './modules/employees/employees.service.ts';
+import { rateRepositories } from './modules/rates/rates.repository.ts';
+import { rateRoutes } from './modules/rates/rates.routes.ts';
+import { createRatesService } from './modules/rates/rates.service.ts';
 import { withTransaction } from './db/transaction.ts';
 
 export type AppDeps = { logger: Logger; db: Pool; clock: Clock; config: Config };
@@ -80,6 +83,15 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   api.use(apiRateLimit());
   api.use(protectedRoutes);
   api.use(employeeRoutes(employees));
+  api.use(
+    rateRoutes(
+      createRatesService({
+        clock,
+        repos: rateRepositories(db),
+        inTransaction: (fn) => withTransaction(db, (client) => fn(rateRepositories(client))),
+      }),
+    ),
+  );
   app.use('/api', api);
 
   app.use((req, _res, next) => {
