@@ -26,7 +26,11 @@ beforeEach(() => {
   });
 });
 
-function setup(path: string, exportResponse: (format: string) => Response) {
+function setup(
+  path: string,
+  exportResponse: (format: string) => Response,
+  extraRoutes: Record<string, (url: URL, body: unknown) => Response> = {},
+) {
   const exports: Record<string, string>[] = [];
   mockApi({
     'GET /api/auth/me': () => json(200, { user: USER }),
@@ -45,6 +49,7 @@ function setup(path: string, exportResponse: (format: string) => Response) {
       exports.push(query);
       return exportResponse(query.format!);
     },
+    ...extraRoutes,
   });
   renderAt(path);
   return exports;
@@ -92,22 +97,79 @@ describe('export menu on the employees list', () => {
     },
   );
 
-  it('explains when a PDF would be too large, and offers CSV or Excel instead', async () => {
-    setup('/employees', () =>
-      json(422, {
-        error: {
-          code: 'EXPORT_TOO_LARGE',
-          message: 'A PDF can hold up to 1,000 rows and this list has 10,000.',
-          details: { rowCount: 10000, limit: 1000 },
-        },
-      }),
-    );
+  const tooLarge = () =>
+    json(422, {
+      error: {
+        code: 'EXPORT_TOO_LARGE',
+        message: 'A PDF can hold up to 1,000 rows and this list has 10,000.',
+        details: { rowCount: 10000, limit: 1000 },
+      },
+    });
+
+  it('offers to email a PDF that is too large, to your own address', async () => {
+    const posted: unknown[] = [];
+    setup('/employees?country=IN&currency=USD&sort=annualSalary&order=desc&page=2', tooLarge, {
+      'POST /api/exports/employees/email': (_url, body) => {
+        posted.push(body);
+        return json(202, { exportId: 'x1' });
+      },
+    });
 
     await exportAs('PDF');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'This list has 10,000 employees, but a PDF can hold up to 1,000. Narrow the filters, or download CSV or Excel.',
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent(
+      'This list has 10,000 employees, but a PDF can hold up to 1,000.',
     );
+    expect(dialog).toHaveTextContent('hr@acme.local');
     expect(saved).toEqual([]);
+
+    await user().click(within(dialog).getByRole('button', { name: /email me the pdf/i }));
+
+    expect(await within(dialog).findByText(/we are preparing your pdf/i)).toBeInTheDocument();
+    expect(posted).toEqual([
+      { country: 'IN', currency: 'USD', sort: 'annualSalary', order: 'desc' },
+    ]);
+    expect(within(dialog).getByRole('link', { name: /my exports/i })).toHaveAttribute(
+      'href',
+      '/exports',
+    );
+  });
+
+  it('sends nothing when you cancel', async () => {
+    const posted: unknown[] = [];
+    setup('/employees', tooLarge, {
+      'POST /api/exports/employees/email': (_url, body) => {
+        posted.push(body);
+        return json(202, { exportId: 'x1' });
+      },
+    });
+    await exportAs('PDF');
+
+    await user().click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /cancel/i }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(posted).toEqual([]);
+  });
+
+  it('shows why queueing failed inside the dialog', async () => {
+    setup('/employees', tooLarge, {
+      'POST /api/exports/employees/email': () =>
+        json(400, {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request',
+            details: [{ path: 'country', message: 'Unknown country' }],
+          },
+        }),
+    });
+    await exportAs('PDF');
+    const dialog = await screen.findByRole('dialog');
+
+    await user().click(within(dialog).getByRole('button', { name: /email me the pdf/i }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Invalid request');
   });
 });
