@@ -2,8 +2,20 @@ import { addDays } from '../lib/dates.ts';
 import { mulberry32 } from '../lib/prng.ts';
 import type { EmployeeRow, NewEmployee } from '../modules/employees/employees.repository.ts';
 
+/** Pay, title and country at a point in time. */
+export type PayState = Pick<EmployeeRow, 'baseSalary' | 'allowances' | 'jobTitle' | 'countryCode'>;
+
+export type SeedChange = PayState & {
+  type: 'annual_review' | 'promotion' | 'relocation';
+  date: string;
+};
+
+/** The employee as they are today, plus where they started (`hire`) and how they got here. */
 export type SeedEmployee = NewEmployee &
-  Pick<EmployeeRow, 'exitType' | 'noticeDate' | 'lastWorkingDay'>;
+  Pick<EmployeeRow, 'exitType' | 'noticeDate' | 'lastWorkingDay'> & {
+    hire: PayState;
+    changes: SeedChange[];
+  };
 
 // Headcount share, local currency per USD (from the reference rate snapshot) and local pay level.
 const COUNTRIES = [
@@ -160,6 +172,49 @@ export function generateEmployees({
     return COUNTRIES.find((c) => (roll -= c.weight) < 0) ?? COUNTRIES[0]!;
   };
 
+  /**
+   * Pay history in the last year for employees who are staying: an annual review for most, then
+   * occasionally a promotion (next title in the department) or a relocation (new country, new pay).
+   */
+  const payHistory = (hire: PayState, hireDate: string, department: string) => {
+    const changes: SeedChange[] = [];
+    let state = hire;
+    const reviewDate = addDays(today, -int(150, 200)); // one review cycle, about six months ago
+    if (hireDate >= reviewDate) return changes;
+
+    if (random() < 0.85) {
+      const raise = 1 + int(3, 12) / 100;
+      state = { ...state, baseSalary: String(roundTo(Number(state.baseSalary) * raise, 100)) };
+      changes.push({ type: 'annual_review', date: reviewDate, ...state });
+    }
+
+    const later = addDays(reviewDate, int(30, 140));
+    const titles = DEPARTMENTS[department]!;
+    const level = titles.findIndex(([title]) => title === state.jobTitle);
+    const roll = random();
+    if (roll < 0.1 && level < titles.length - 1) {
+      state = {
+        ...state,
+        jobTitle: titles[level + 1]![0],
+        baseSalary: String(roundTo(Number(state.baseSalary) * (1 + int(10, 20) / 100), 1000)),
+        allowances: String(roundTo(Number(state.allowances) * 1.1, 100)),
+      };
+      changes.push({ type: 'promotion', date: later, ...state });
+    } else if (roll > 0.97) {
+      const [, min, max] = titles[level]!;
+      const target = pick(COUNTRIES.filter((c) => c.code !== state.countryCode));
+      const base = roundTo(int(min, max) * target.payLevel * target.perUsd, 1000);
+      state = {
+        ...state,
+        countryCode: target.code,
+        baseSalary: String(base),
+        allowances: String(roundTo(base * random() * 0.15, 100)),
+      };
+      changes.push({ type: 'relocation', date: later, ...state });
+    }
+    return changes;
+  };
+
   return Array.from({ length: count }, (_, i) => {
     const firstName = pick(FIRST_NAMES);
     const lastName = pick(LAST_NAMES);
@@ -177,20 +232,31 @@ export function generateEmployees({
     const lastWorkingDay = addDays(noticeDate, onNotice ? int(30, 90) : int(30, 59));
     const leaves = roll < 0.07 && hireDate <= noticeDate;
 
+    const hire: PayState = {
+      baseSalary: String(base),
+      allowances: String(allowances),
+      jobTitle,
+      countryCode: country.code,
+    };
+    const changes = leaves ? [] : payHistory(hire, hireDate, department);
+    const now = changes.at(-1) ?? hire;
+
     return {
       employeeCode: `EMP-${String(i + 1).padStart(5, '0')}`,
       firstName,
       lastName,
       email: `${firstName}.${lastName}.${i + 1}@acme.com`.toLowerCase(),
-      jobTitle,
+      jobTitle: now.jobTitle,
       department,
-      countryCode: country.code,
+      countryCode: now.countryCode,
       hireDate,
-      baseSalary: String(base),
-      allowances: String(allowances),
+      baseSalary: now.baseSalary,
+      allowances: now.allowances,
       exitType: leaves ? (onNotice || random() < 0.8 ? 'resigned' : 'terminated') : null,
       noticeDate: leaves ? noticeDate : null,
       lastWorkingDay: leaves ? lastWorkingDay : null,
+      hire,
+      changes,
     };
   });
 }

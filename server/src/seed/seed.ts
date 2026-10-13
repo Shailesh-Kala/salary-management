@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import { withTransaction } from '../db/transaction.ts';
 import { hashPassword } from '../modules/auth/password.ts';
 import { createUsersRepository, normalizeEmail } from '../modules/auth/users.repository.ts';
-import { generateEmployees, type SeedEmployee } from './generate.ts';
+import { generateEmployees, type PayState, type SeedEmployee } from './generate.ts';
 
 export type SeedOptions = {
   count: number;
@@ -82,6 +82,25 @@ async function insertEmployees(client: PoolClient, batch: SeedEmployee[]) {
   return new Map(rows.map((r) => [r.employee_code, r.id]));
 }
 
+const NOTES: Record<string, string> = {
+  hire: 'Seeded employee record',
+  annual_review: 'Seeded annual review',
+  promotion: 'Seeded promotion',
+  relocation: 'Seeded relocation',
+  exit: 'Seeded exit record',
+};
+
+const PAY_FIELDS = ['baseSalary', 'allowances', 'jobTitle', 'countryCode'] as const;
+
+/** old → new for the pay fields that differ (all of them, from null, for the hire). */
+const payDiff = (before: PayState | null, after: PayState) =>
+  Object.fromEntries(
+    PAY_FIELDS.filter((f) => before?.[f] !== after[f]).map((f) => [
+      f,
+      { old: before?.[f] ?? null, new: after[f] },
+    ]),
+  );
+
 async function insertChanges(
   client: PoolClient,
   batch: SeedEmployee[],
@@ -90,38 +109,32 @@ async function insertChanges(
   adminId: string,
 ) {
   const changes = batch.flatMap((e) => {
-    // Seeded exits change no pay fields, so both entries carry the same snapshot.
-    const base = {
-      employee: e,
+    const entry = (type: string, date: string, state: PayState, diff: object) => ({
       employeeId: ids.get(e.employeeCode)!,
-      currency: currencyOf.get(e.countryCode)!,
-    };
-    const hire = {
-      ...base,
-      type: 'hire',
-      date: e.hireDate,
-      note: 'Seeded employee record',
-      changes: {
-        baseSalary: { old: null, new: e.baseSalary },
-        allowances: { old: null, new: e.allowances },
-        jobTitle: { old: null, new: e.jobTitle },
-        department: { old: null, new: e.department },
-        countryCode: { old: null, new: e.countryCode },
-      },
-    };
-    if (!e.exitType) return [hire];
-    const exit = {
-      ...base,
-      type: 'exit',
-      date: e.noticeDate!,
-      note: 'Seeded exit record',
-      changes: {
-        exitType: { old: null, new: e.exitType },
-        noticeDate: { old: null, new: e.noticeDate },
-        lastWorkingDay: { old: null, new: e.lastWorkingDay },
-      },
-    };
-    return [hire, exit];
+      department: e.department,
+      currency: currencyOf.get(state.countryCode)!,
+      type,
+      date,
+      state,
+      changes: diff,
+    });
+
+    const rows = [entry('hire', e.hireDate, e.hire, payDiff(null, e.hire))];
+    let before = e.hire;
+    for (const change of e.changes) {
+      rows.push(entry(change.type, change.date, change, payDiff(before, change)));
+      before = change;
+    }
+    if (e.exitType) {
+      rows.push(
+        entry('exit', e.noticeDate!, before, {
+          exitType: { old: null, new: e.exitType },
+          noticeDate: { old: null, new: e.noticeDate },
+          lastWorkingDay: { old: null, new: e.lastWorkingDay },
+        }),
+      );
+    }
+    return rows;
   });
 
   const column = (pick: (c: (typeof changes)[number]) => unknown) => changes.map(pick);
@@ -138,15 +151,15 @@ async function insertChanges(
       column((c) => c.employeeId),
       column((c) => c.type),
       column((c) => c.date),
-      column((c) => c.note),
+      column((c) => NOTES[c.type]),
       column(() => 'seed'),
       column((c) => JSON.stringify(c.changes)),
-      column((c) => c.employee.baseSalary),
-      column((c) => c.employee.allowances),
+      column((c) => c.state.baseSalary),
+      column((c) => c.state.allowances),
       column((c) => c.currency),
-      column((c) => c.employee.countryCode),
-      column((c) => c.employee.jobTitle),
-      column((c) => c.employee.department),
+      column((c) => c.state.countryCode),
+      column((c) => c.state.jobTitle),
+      column((c) => c.department),
       adminId,
     ],
   );
