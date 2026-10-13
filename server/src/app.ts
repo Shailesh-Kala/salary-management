@@ -19,9 +19,13 @@ import { createUsersRepository } from './modules/auth/users.repository.ts';
 import { employeeRepositories } from './modules/employees/employees.repository.ts';
 import { employeeRoutes } from './modules/employees/employees.routes.ts';
 import { createEmployeesService } from './modules/employees/employees.service.ts';
+import { importRepositories } from './modules/imports/imports.repository.ts';
+import { importRoutes } from './modules/imports/imports.routes.ts';
+import { createImportsService } from './modules/imports/imports.service.ts';
 import { insightRepositories } from './modules/insights/insights.repository.ts';
 import { insightRoutes } from './modules/insights/insights.routes.ts';
 import { createInsightsService } from './modules/insights/insights.service.ts';
+import { createQueue } from './jobs/queue.ts';
 import { exportRepositories } from './modules/exports/exports.repository.ts';
 import { exportRoutes } from './modules/exports/exports.routes.ts';
 import { createExportsService } from './modules/exports/exports.service.ts';
@@ -92,6 +96,18 @@ export function createApp({ logger, db, clock, config }: AppDeps) {
   api.use(apiRateLimit());
   api.use(protectedRoutes);
   api.use(employeeRoutes(employees));
+  api.use(
+    importRoutes(
+      createImportsService({
+        clock,
+        repos: importRepositories(db),
+        inTransaction: (fn) =>
+          withTransaction(db, (client) =>
+            fn({ imports: importRepositories(client), queue: createQueue(client, clock) }),
+          ),
+      }),
+    ),
+  );
   api.use(exportRoutes(createExportsService({ clock, employees, repos: exportRepositories(db) })));
   api.use(slipRoutes(createSlipsService({ clock, repos: slipRepositories(db) })));
   api.use(

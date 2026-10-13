@@ -22,6 +22,16 @@ function toAppError(err: unknown): AppError | null {
       { path: field, message: 'Already in use' },
     ]);
   }
+  const upload = err as { name?: string; code?: string; message?: string } | null;
+  if (upload?.name === 'MulterError') {
+    return upload.code === 'LIMIT_FILE_SIZE'
+      ? new AppError('PAYLOAD_TOO_LARGE', 413, 'The file is larger than 5 MB', [
+          { path: 'file', message: 'The file is larger than 5 MB' },
+        ])
+      : new AppError('VALIDATION_ERROR', 400, 'Invalid request', [
+          { path: 'file', message: upload.message ?? 'Invalid upload' },
+        ]);
+  }
   const type = (err as { type?: string } | null)?.type; // set by express.json()
   if (type === 'entity.parse.failed') {
     return new AppError('VALIDATION_ERROR', 400, 'Malformed JSON body');
