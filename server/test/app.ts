@@ -24,6 +24,9 @@ export const testConfig: Config = {
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
   COOKIE_SECURE: true,
   CORS_ORIGIN: 'http://localhost:5173',
+  APP_BASE_URL: 'http://localhost:5173',
+  SMTP_PORT: 2525,
+  SMTP_FROM: 'Salary Management <no-reply@acme.local>',
   APP_TIMEZONE: 'Asia/Kolkata',
 };
 

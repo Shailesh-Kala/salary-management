@@ -6,7 +6,7 @@ import { buildTestApp, fixedClock } from '../../../test/app.ts';
 import { signIn } from '../../../test/auth.ts';
 import { resetDb, testPool } from '../../../test/db.ts';
 import { insertEmployee } from '../../../test/factories.ts';
-import { jobHandlers } from '../../jobs/handlers.ts';
+import { testJobHandlers } from '../../../test/handlers.ts';
 import { createQueue } from '../../jobs/queue.ts';
 import { createWorker } from '../../jobs/worker.ts';
 
@@ -77,7 +77,7 @@ beforeEach(async () => {
   const clock = fixedClock();
   worker = createWorker({
     queue: createQueue(testPool, clock),
-    handlers: jobHandlers({ db: testPool, clock }),
+    handlers: testJobHandlers({ clock }),
     logger: pino({ level: 'silent' }),
   });
 
@@ -168,7 +168,7 @@ describe('import validation and preview (T1)', () => {
 
   it('does nothing when validation runs again after it has finished (retry-safe)', async () => {
     const id = await uploadAndValidate();
-    const handler = jobHandlers({ db: testPool, clock: fixedClock() }).import_validate!;
+    const handler = testJobHandlers({ clock: fixedClock() }).import_validate!;
 
     await handler({
       id: 'retry',

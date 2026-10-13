@@ -6,7 +6,7 @@ import { signIn } from '../../../test/auth.ts';
 import { resetDb, testPool } from '../../../test/db.ts';
 import { createUser } from '../auth/user-admin.ts';
 import { insertEmployee } from '../../../test/factories.ts';
-import { jobHandlers } from '../../jobs/handlers.ts';
+import { testJobHandlers } from '../../../test/handlers.ts';
 import { createQueue } from '../../jobs/queue.ts';
 import { createWorker } from '../../jobs/worker.ts';
 
@@ -42,7 +42,7 @@ beforeEach(async () => {
   clock = fixedClock();
   worker = createWorker({
     queue: createQueue(testPool, clock),
-    handlers: jobHandlers({ db: testPool, clock }),
+    handlers: testJobHandlers({ clock }),
     logger: pino({ level: 'silent' }),
   });
   await insertEmployee({ employeeCode: 'EMP-1', email: 'e1@acme.com' });
