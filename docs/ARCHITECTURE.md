@@ -114,7 +114,7 @@ sequenceDiagram
   W->>DB: UPDATE exports SET email_sent_at=now WHERE email_sent_at IS NULL RETURNING id
   alt row returned (not sent before)
     W->>M: send link APP_BASE_URL/exports/:id to requester's own address
-    Note over W,M: on send error → clear email_sent_at, throw → retry
+    Note over W,M: on send error → clear email_sent_at, throw → retry<br/>(after the last attempt the export is marked failed and its file dropped)
   end
   Note over UI: HR clicks the link in webmail → top-level navigation to the SPA page /exports/:id<br/>(the cookie may be withheld on this cross-site navigation — the HTML needs no auth)
   UI->>API: GET /api/auth/me (same-site fetch → cookie sent)
@@ -246,7 +246,7 @@ erDiagram
 | filters | jsonb: filters, sort and reporting currency used |
 | row_count | |
 | status | `completed` (direct) \| `queued` \| `ready` \| `failed` (email) |
-| file | bytea NULL; set to NULL by cleanup |
+| file | bytea NULL; set to NULL by cleanup, or when the export fails (D-052) |
 | expires_at, email_sent_at, deleted_at, created_at | |
 
 **`export_downloads`**: `id`, `export_id`, `user_id`, `outcome` (`downloaded` \| `forbidden` \| `expired`), `at`. Append-only, with the same trigger as `employee_changes`.

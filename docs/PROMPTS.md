@@ -725,3 +725,13 @@ next
 ```
 
 **Response:** Task 37: an Imports page (template download, upload form, history from the new `GET /api/imports`, a link to the running import on 409) and an import page that polls, shows the preview counts and deadline with Import valid rows / Cancel, rejected rows with their download, the final report, and "preview expired — upload again".
+
+---
+
+## 56. Phase 3 — Task 38: Emailed PDF export job
+
+```text
+next
+```
+
+**Response:** Task 38: `POST /api/exports/employees/email` queues the PDF; the job builds it once, schedules the cleanup for 24 h later and emails the requester only a link to the app page (no pay data — T11), and retries send exactly one email whether the job failed before or after sending (T9). Your local `.env` has a non-numeric `SMTP_PORT`, which the server now rejects at start-up.

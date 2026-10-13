@@ -271,7 +271,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
     ✅ *Usable: HR bulk-loads and updates employees from the template.*
 
 ## Slice L: Email export
-38. [ ] **Emailed PDF export job.**
+38. [x] **Emailed PDF export job.**
     - Integration tests (fake mailer):
       - `POST /exports/employees/email` → 202; the email goes to the requester's own address, links to `APP_BASE_URL/exports/:id` (not `/api/…`), and has no salary data (**T11**, server part)
       - **T9:** a failure after sending, then a retry → exactly 1 email; a failure before sending, then a retry → exactly 1 email

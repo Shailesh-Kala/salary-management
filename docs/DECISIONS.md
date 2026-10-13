@@ -322,3 +322,9 @@ Every meaningful decision: what, alternatives considered, why, and the trade-off
 - **Alternatives:** Clear in each service/job path that ends an import; a periodic sweep for stuck imports.
 - **Why:** One rule in the database covers every path, now and later, in the same statement. Without `onGiveUp`, an import whose job used up its retries stayed `validating`/`applying` and blocked all uploads.
 - **Trade-off:** The clearing lives in SQL rather than TypeScript, so it is less visible when reading the services; T13 covers it.
+
+## D-052 — Emailed exports: injectable mailer, optional SMTP, failed exports drop their file
+- **What:** Email goes through a small `Mailer` interface (`send({to, subject, text})`); production uses nodemailer over SMTP, tests use a fake that records what was delivered. `SMTP_HOST` is optional: without it the API runs and an emailed export fails with "Email is not configured". `APP_BASE_URL`, `SMTP_PORT` (default 2525), `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` are read from the environment. The email contains only a link to the app page and its expiry time. When the export job gives up, the export is marked `failed` (with the error) and any built file is deleted.
+- **Alternatives:** Require SMTP settings at start-up; call nodemailer directly in the job; keep the built file of a failed export until its expiry.
+- **Why:** A fake mailer keeps tests fast and offline, and lets them count deliveries (T9). Optional SMTP means people who never email exports (and CI) need no mail settings. A file that nobody was told about has no purpose, so keeping salary data for it would be pointless.
+- **Trade-off:** A missing mail setting shows up as a failed export, not at start-up. The cleanup job scheduled for a failed export still runs once and finds nothing to delete.
