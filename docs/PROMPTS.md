@@ -622,3 +622,13 @@ next
 ```
 
 **Response:** TDD: failing integration tests on 1,001 seeded employees (≤ 1,000 rows → multi-page PDF named `employees-<date>.pdf`, audited; the full list → 422 `EXPORT_TOO_LARGE` with row count and limit, nothing audited; CSV still fine). Implemented a landscape A4 list PDF (filters line, rates date, header repeated per page, "Page x of y"), the 1,000-row check before rendering, and shared `lib/pdf.ts` helpers now also used by the slip PDF. Checked real output visually (Singapore Finance, 2 pages) and a 422 on the full 10k list. Raised: en-IN digit grouping is applied to non-INR currencies too. 357 tests pass.
+
+---
+
+## 46. Phase 3 — Task 31: Export menu
+
+```text
+next
+```
+
+**Response:** TDD: failing RTL tests (each of CSV, Excel and PDF requests `/api/exports/employees` with the list's filters, search, sort and currency but no paging, and saves the server's filename; a 422 explains the PDF limit and suggests CSV/Excel, saving nothing). Built an Export menu on the list page that downloads via `fetch` + blob (so errors stay readable), a shared `download()` in the API client, and widened `ApiError.details` to carry non-field data. Digit-grouping question unanswered, so formatting unchanged. 361 tests pass. Slice J done.

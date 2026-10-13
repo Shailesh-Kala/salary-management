@@ -207,7 +207,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - an `exports` audit row is written
 30. [x] **Direct PDF export API:** ≤ 1,000 rows.
     - Tests: ≤ 1,000 rows → `%PDF`; > 1,000 rows → 422 `EXPORT_TOO_LARGE`; audit row written.
-31. [ ] **Export menu on the list page:** CSV / Excel / PDF for the current filters. Until slice L, a 422 shows "too large — narrow the filters or use CSV/Excel".
+31. [x] **Export menu on the list page:** CSV / Excel / PDF for the current filters. Until slice L, a 422 shows "too large — narrow the filters or use CSV/Excel".
     - RTL test: each format calls the export URL with the current filters; a 422 shows the message.
 
     ✅ *Usable: HR exports in all three formats; large PDFs come in slice L.*
