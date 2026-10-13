@@ -498,3 +498,15 @@ next
 ```
 
 **Response:** TDD: failing unit tests for pure `planExit` (hire ≤ notice ≤ last working day, notice not future and not before the latest change, immediate and back-dated exits allowed, no second exit) and `planWithdraw` (only while on notice), plus schema tests; integration tests for resignation (on notice, `exit` history entry, list `status` filter), back-dated termination (exited), stale version 409, 400 field error, withdrawal (active again, fields cleared, `exit_withdrawn` effective today) and nothing-to-withdraw. Implemented `POST /employees/:id/exit` and `/exit/withdraw` sharing one locked-transaction helper; fixed my test fixtures that lacked `exitType`. Refactored shared `invalidField`/`withStatus` helpers. 258 tests pass.
+
+---
+
+## 34. Phase 3 — Task 19: Exit and withdraw dialogs
+
+```text
+next
+[Request interrupted by user]
+Continue
+```
+
+**Response:** TDD: failing RTL tests (on-notice employee shows exit type, dates and "60 days" notice period with only "Withdraw exit"; exited shows no exit actions; record-exit dialog shows "Last working day must be on or after the notice date" and disables Save, then "Notice period: 60 days", posts the exact body and shows "On notice"; withdraw needs a note, posts `{version, note}` and shows "Active"). Then `daysBetween` (UTC), `ExitDialog`, `WithdrawExitDialog`, status-dependent buttons and exit details on the detail page. Refactored all dialogs onto a shared `useEmployeeEvent` hook and `saveErrors` helper. 262 tests pass. Slice F done.

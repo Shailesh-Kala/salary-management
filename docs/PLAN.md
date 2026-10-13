@@ -140,7 +140,7 @@ Each task is sized to 1–3 commits, following the TDD cycle in [CLAUDE.md](../C
       - withdraw only while on notice
       - note required
     - Integration tests: endpoints write a change entry; the `status` filter in the list reflects exits.
-19. [ ] **Exit and withdraw dialogs:** status and last working day on the detail page, plus the status filter in the list.
+19. [x] **Exit and withdraw dialogs:** status and last working day on the detail page, plus the status filter in the list.
     - RTL test: the exit dialog validates date order and shows the computed notice days.
 
     ✅ *Usable: HR tracks resignations and notice periods.*
