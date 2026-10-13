@@ -116,3 +116,49 @@ describe('GET /api/employees/:id/slips/:month', () => {
     expect((await slip('2026-09', randomUUID())).status).toBe(404);
   });
 });
+
+describe('GET /api/employees/:id/slips/:month?format=pdf', () => {
+  const pdf = (month: string) =>
+    request(app)
+      .get(`/api/employees/${id}/slips/${month}?format=pdf`)
+      .set('Cookie', cookie)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      });
+
+  it('downloads the slip as a PDF named after the employee code and month', async () => {
+    const res = await pdf('2026-09');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toBe(
+      'attachment; filename="slip-EMP-00001-2026-09.pdf"',
+    );
+    const body = res.body as Buffer;
+    expect(body.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(body.toString('latin1')).toContain('Salary slip EMP-00001 2026-09');
+  });
+
+  it('still answers a slip outside employment with a JSON 400, not a PDF', async () => {
+    const res = await request(app)
+      .get(`/api/employees/${id}/slips/2024-03?format=pdf`)
+      .set('Cookie', cookie);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual([
+      { path: 'month', message: 'Asha Verma joined on 2024-04-01' },
+    ]);
+  });
+
+  it('rejects an unknown format', async () => {
+    const res = await request(app)
+      .get(`/api/employees/${id}/slips/2026-09?format=docx`)
+      .set('Cookie', cookie);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.map((d: { path: string }) => d.path)).toEqual(['format']);
+  });
+});
