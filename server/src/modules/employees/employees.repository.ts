@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { rateRepositories } from '../rates/rates.repository.ts';
 import type { AuditedField } from './changes.ts';
 import type { ListEmployeesQuery } from './employee.schemas.ts';
 import type { ExitFields } from './lifecycle.ts';
@@ -137,15 +138,7 @@ const HISTORY_COLUMNS = `ch.id::text AS id, ch.change_type AS "changeType",
 export function employeeRepositories(db: Pool | PoolClient) {
   return {
     employees: {
-      /** Oldest rate date (conversions are only as fresh as it) and whether `currency` exists. */
-      ratesInfo: async (currency: string) =>
-        (
-          await db.query<{ asOf: string; known: boolean }>(
-            `SELECT min(as_of) AS "asOf", coalesce(bool_or(currency_code = $1), false) AS known
-               FROM exchange_rates`,
-            [currency],
-          )
-        ).rows[0]!,
+      ratesInfo: rateRepositories(db).ratesInfo,
 
       list: async (f: ListEmployeesQuery, today: string) => {
         const params: unknown[] = [];
