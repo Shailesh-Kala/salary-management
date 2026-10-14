@@ -74,8 +74,12 @@ const newRow = [
 const withValue = (row: string[], column: (typeof TEMPLATE_HEADER)[number], value: string) =>
   row.map((v, i) => (TEMPLATE_HEADER[i] === column ? value : v));
 
+// A bug in the rules should fail a test, not hide as a rejected row.
+const throwUnexpected = (err: unknown): never => {
+  throw err;
+};
 const validate = (rows: string[][], ctx = context(), header: string[] = [...TEMPLATE_HEADER]) =>
-  validateRows(header, rows, ctx);
+  validateRows(header, rows, ctx, throwUnexpected);
 const only = (rows: string[][], ctx = context()) => validate(rows, ctx)[0]!;
 
 describe('validateRows: outcomes', () => {
@@ -260,5 +264,55 @@ describe('validateRows: columns', () => {
         TEMPLATE_HEADER.map((h, i) => [h, withValue(newRow, 'base_salary', 'abc')[i]]),
       ),
     );
+  });
+});
+
+describe('validateRows: unexpected errors', () => {
+  /** A lookup that fails like a bug in the rules would, for one employee code only. */
+  class FailsForNewHire extends Map<string, ExistingEmployee> {
+    override get(code: string) {
+      if (code === 'EMP-9') throw new Error('boom');
+      return super.get(code);
+    }
+  }
+  const failing = () =>
+    context([asha], { employeesByCode: new FailsForNewHire([['EMP-1', asha]]) });
+
+  it('hands the error to onUnexpected, and only that row gets its answer', () => {
+    const seen: [unknown, number][] = [];
+
+    const results = validateRows([...TEMPLATE_HEADER], [newRow, ashaRow], failing(), (err, row) => {
+      seen.push([err, row]);
+      return `Unexpected error: row not imported (ref 7/${row})`;
+    });
+
+    expect(results.map((r) => [r.rowNumber, r.outcome, r.errors])).toEqual([
+      [1, 'rejected', ['Unexpected error: row not imported (ref 7/1)']],
+      [2, 'unchanged', []],
+    ]);
+    expect(seen).toEqual([[new Error('boom'), 1]]);
+  });
+
+  it('lets the caller rethrow instead, so the failure is not hidden', () => {
+    expect(() => validateRows([...TEMPLATE_HEADER], [newRow], failing(), throwUnexpected)).toThrow(
+      'boom',
+    );
+  });
+
+  it('does not involve onUnexpected for ordinary rejections', () => {
+    const seen: unknown[] = [];
+
+    const [result] = validateRows(
+      [...TEMPLATE_HEADER],
+      [withValue(newRow, 'email', 'nope')],
+      context(),
+      (err) => {
+        seen.push(err);
+        return 'unexpected';
+      },
+    );
+
+    expect(result!.errors).toEqual(['email: Enter a valid email address, like name@company.com']);
+    expect(seen).toEqual([]);
   });
 });
