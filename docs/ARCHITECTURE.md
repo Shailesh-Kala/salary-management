@@ -85,8 +85,8 @@ stateDiagram-v2
   try { await applyRowInTx(row) }
   catch (err) {
     if (isInfrastructureError(err)) throw err          // job fails → retried, finished rows skipped
-    await markRowRejected(row, 'unexpected error — row not imported', ref)  // own tx
-    log.error({ jobId, rowNumber, code: err.code })   // no row data
+    await markRowRejected(row, 'Unexpected error: row not imported (ref jobId/rowNumber)')  // own tx
+    log.error({ jobId, rowNumber, errorName, error: err.message })   // no row data (D-058)
   }
   ```
   `isInfrastructureError` is a pure, unit-tested classifier. It matches:
@@ -94,7 +94,7 @@ stateDiagram-v2
   - `40001` (serialisation failure) and `40P01` (deadlock)
   - Node socket errors (`ECONNRESET`, `ECONNREFUSED`, `ETIMEDOUT`, `EPIPE`) and the pg "connection terminated" error
 
-  Everything else is a row problem. The validate step uses the same wrapper.
+  Everything else is a row problem. `validateRows` itself never hides one: it takes a required `onUnexpected(err, rowNumber)` callback. The validate step passes one that logs the error and rejects just that row with the same `(ref jobId/rowNumber)` reason, so one bad row does not fail the preview; the apply step passes one that rethrows into the handler above (D-058).
 
 **Large PDF export by email** (D-016, D-018, D-020)
 ```mermaid

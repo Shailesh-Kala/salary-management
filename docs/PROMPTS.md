@@ -802,3 +802,14 @@ make sure server and web pin the exact same zod version, so there's only one cop
 ```
 
 **Response:** Both already pin zod 4.6.6 exactly and the shared schema, the server and the web code all resolve to the single installed copy, so nothing needed changing. I added a test that fails if the two versions differ or a second copy appears, and noted it in D-057.
+
+---
+
+## 63. Phase 3 — Code review: unexpected errors in the import rules
+
+```text
+I have reviewed the code and I have one suggestion:
+server/src/modules/imports/validate-rows.ts:107 — every exception is converted into a user-data rejection. Unexpected errors do not reach the job's error handling or carry a diagnostic reference at this point. Suggested: rethrow anything that is not RowRejected.
+```
+
+**Response:** You were right that unexpected errors were hidden (no log, no reference), but I didn't rethrow from `validateRows`, because in the preview one bad row would then fail the whole import. Instead `validateRows` takes a required `onUnexpected` callback: the preview logs the error and rejects just that row with a `(ref job/row)`, and applying rethrows into its per-row handler, which now logs the same reference (D-058; tests added).
