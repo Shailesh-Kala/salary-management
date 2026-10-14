@@ -1,10 +1,12 @@
 import type { Pool, PoolClient } from 'pg';
+import type { Logger } from 'pino';
 import { withTransaction } from '../../db/transaction.ts';
 import type { JobHandler } from '../../jobs/worker.ts';
 import type { Clock } from '../../lib/clock.ts';
 import { isInfrastructureError } from '../../lib/infrastructure-error.ts';
 import { employeeRepositories } from '../employees/employees.repository.ts';
 import { type ImportRecord, importRepositories } from './imports.repository.ts';
+import { reportUnexpectedRow } from './unexpected.ts';
 import { TEMPLATE_HEADER } from './upload.ts';
 import { validateRows } from './validate-rows.ts';
 
@@ -16,7 +18,15 @@ type PendingRow = Awaited<ReturnType<ReturnType<typeof importRepositories>['pend
  * so a retry skips finished rows (D-020). A row that fails unexpectedly is rejected on its own;
  * only infrastructure errors fail the job so it is retried (D-037).
  */
-export function createApplyImportHandler({ db, clock }: { db: Pool; clock: Clock }): JobHandler {
+export function createApplyImportHandler({
+  db,
+  clock,
+  logger,
+}: {
+  db: Pool;
+  clock: Clock;
+  logger: Logger;
+}): JobHandler {
   return async (job) => {
     const importId = String(job.payload.importId);
     const repos = importRepositories(db);
@@ -35,7 +45,7 @@ export function createApplyImportHandler({ db, clock }: { db: Pool; clock: Clock
         );
       } catch (err) {
         if (isInfrastructureError(err)) throw err;
-        const reason = `Unexpected error: row not imported (ref ${job.id}/${row.rowNumber})`;
+        const reason = reportUnexpectedRow(logger, job, row.rowNumber, err);
         await repos.recordOutcome(importId, row.rowNumber, 'rejected', [reason], clock.now());
       }
     }
@@ -61,7 +71,10 @@ async function applyRow(
   const code = values[0]!.trim().toUpperCase();
   const email = values[3]!.trim().toLowerCase();
   const ctx = await imports.rowContext(form, clock.today(), code, email, currencyByCountry);
-  const [result] = validateRows([...TEMPLATE_HEADER], [values], ctx);
+  // Unexpected errors leave this row's transaction (it rolls back) and reach the handler above.
+  const [result] = validateRows([...TEMPLATE_HEADER], [values], ctx, (err) => {
+    throw err;
+  });
   const now = clock.now();
 
   let outcome: string = result!.outcome;

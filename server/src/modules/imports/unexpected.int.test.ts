@@ -14,7 +14,7 @@ const state = vi.hoisted(() => ({ poisoned: false }));
 vi.mock('./validate-rows.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('./validate-rows.ts')>();
   type Employees = import('./validate-rows.ts').RowContext['employeesByCode'];
-  class FailsForBoom extends Map {
+  class FailsForBoom extends Map<string, unknown> {
     override get(code: string) {
       if (code === 'EMP-BOOM') throw new Error('injected rule failure');
       return super.get(code);

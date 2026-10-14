@@ -27,6 +27,7 @@ const worker = createWorker({
     db,
     clock,
     mailer: createSmtpMailer(config),
+    logger,
     appBaseUrl: config.APP_BASE_URL,
   }),
   logger,

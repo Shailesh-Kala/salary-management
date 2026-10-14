@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Clock } from '../lib/clock.ts';
+import type { Logger } from 'pino';
 import { withTransaction } from '../db/transaction.ts';
 import type { Mailer } from '../lib/mailer.ts';
 import { employeeRepositories } from '../modules/employees/employees.repository.ts';
@@ -17,11 +18,13 @@ export function jobHandlers({
   db,
   clock,
   mailer,
+  logger,
   appBaseUrl,
 }: {
   db: Pool;
   clock: Clock;
   mailer: Mailer;
+  logger: Logger;
   appBaseUrl: string;
 }): Record<string, JobHandler> {
   const employees = createEmployeesService({
@@ -37,8 +40,8 @@ export function jobHandlers({
   };
 
   return {
-    import_validate: Object.assign(createValidateImportHandler({ db, clock }), failImport),
-    import_apply: Object.assign(createApplyImportHandler({ db, clock }), failImport),
+    import_validate: Object.assign(createValidateImportHandler({ db, clock, logger }), failImport),
+    import_apply: Object.assign(createApplyImportHandler({ db, clock, logger }), failImport),
     export_pdf: createEmailedExportHandler({ db, clock, mailer, employees, appBaseUrl }),
     /** Runs when the link expires; does nothing if the file is already gone. */
     export_cleanup: (job) =>

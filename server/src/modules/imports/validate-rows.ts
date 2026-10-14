@@ -82,11 +82,24 @@ const reject = (...errors: string[]): never => {
 const PROFILE_FIELDS = ['firstName', 'lastName', 'email'] as const;
 
 /**
+ * Decides what to do with a row that failed in a way the rules did not expect (a bug, not bad
+ * data): it returns the reason to show for that row, after reporting the error; or it rethrows
+ * to fail the caller. There is deliberately no default, so no caller hides such errors.
+ */
+export type OnUnexpected = (err: unknown, rowNumber: number) => string;
+
+/**
  * The import row rules (REQUIREMENTS §4.8, D-036), shared by the preview and the apply step:
  * pure, so the same file and data always give the same outcome. Pay and title changes go through
- * `planChange`, so an import can never do what the change dialog forbids.
+ * `planChange`, so an import can never do what the change dialog forbids. Bad data rejects that
+ * row; an unexpected error goes to `onUnexpected`.
  */
-export function validateRows(header: string[], rows: string[][], ctx: RowContext): RowResult[] {
+export function validateRows(
+  header: string[],
+  rows: string[][],
+  ctx: RowContext,
+  onUnexpected: OnUnexpected,
+): RowResult[] {
   const columns = header.map((h) => h.trim().toLowerCase());
   const positions = TEMPLATE_HEADER.map((column) => columns.indexOf(column));
   const firstRowWithCode = new Map<string, number>();
@@ -105,8 +118,7 @@ export function validateRows(header: string[], rows: string[][], ctx: RowContext
       const seen = { firstRowWithCode, firstRowWithEmail };
       return { rowNumber, employeeCode, raw, ...classify(raw, rowNumber, ctx, seen) };
     } catch (err) {
-      const errors =
-        err instanceof RowRejected ? err.errors : ['Unexpected error: row not imported'];
+      const errors = err instanceof RowRejected ? err.errors : [onUnexpected(err, rowNumber)];
       return { rowNumber, employeeCode, raw, outcome: 'rejected', errors, change: null };
     }
   });
